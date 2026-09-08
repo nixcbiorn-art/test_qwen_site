@@ -13,170 +13,173 @@
 
 import json
 import os
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field, HttpUrl, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+import structlog
+
+logger = structlog.get_logger()
 
 # Загружаем переменные из .env файла (если есть)
 load_dotenv()
 
 
-def _get_env(key: str, default: str = "") -> str:
-    """Получить значение из переменной окружения."""
-    return os.getenv(key, default)
-
-
-def _get_env_int(key: str, default: int) -> int:
-    """Получить целочисленное значение из переменной окружения."""
-    try:
-        return int(os.getenv(key, str(default)))
-    except (TypeError, ValueError):
-        return default
-
-
-def _get_env_bool(key: str, default: bool) -> bool:
-    """Получить булево значение из переменной окружения."""
-    val = os.getenv(key, "").lower()
-    if val in ("1", "true", "yes", "on"):
-        return True
-    if val in ("0", "false", "no", "off"):
-        return False
-    return default
-
-
-# Базовые URL - могут быть переопределены через ENV или settings.json
-SITE_URL = _get_env("PARSER_SITE_URL", "https://example.com")
-API_BASE_URL = _get_env("PARSER_API_BASE_URL", "https://api.example.com/v1")
-
-LOGIN_URL = f"{SITE_URL}/login"
-USERNAME = _get_env("PARSER_USERNAME", "")
-PASSWORD = _get_env("PARSER_PASSWORD", "")
-
-CHECK_INTERVAL_SECONDS = _get_env_int("PARSER_CHECK_INTERVAL", 300)
-HEADLESS_BROWSER = _get_env_bool("PARSER_HEADLESS", True)
-
-# Абсолютные пути относительно расположения ЭТОГО файла (config.py), а не
-# текущей рабочей директории процесса. Раньше пути были относительными
-# ("data/settings.json") и резолвились от cwd — если скрипт запущен не из
-# папки C:\\parser (например, из ParserApp без явного WorkingDirectory),
-# settings.json тихо не находился и использовались дефолты из этого файла.
-_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-DATA_DIR = os.path.join(_BASE_DIR, "data")
-DB_PATH = os.path.join(DATA_DIR, "changes.db")
-
-BROWSER_TYPE = _get_env("PARSER_BROWSER_TYPE", "chromium")
-
-# --- Настройки полного обхода сайта (crawler.py) ---
-CRAWL_MAX_PAGES = _get_env_int("PARSER_CRAWL_MAX_PAGES", 200)
-CRAWL_DELAY_SECONDS = float(_get_env("PARSER_CRAWL_DELAY", "1.0"))
-CRAWL_OUTPUT_DIR = os.path.join(DATA_DIR, "pages")
-CRAWL_INCLUDE_QUERY = _get_env_bool("PARSER_CRAWL_INCLUDE_QUERY", False)
-
-# --- Список API-эндпоинтов для monitor.py ---
-# Каждый элемент:
-# {
-#   "path": "/data/items", "token": "", "auth_mode": "login",
-#   "paginate": false,      # true -> автоматически обойти ВСЕ страницы
-#                           #   (по page[number]/page/offset в URL) и
-#                           #   объединить элементы всех страниц
-#   "items_path": "",       # где в ответе лежит список элементов, если
-#                           #   автоопределение не справляется, напр. "data"
-#   "mapping": {},          # {"выходное_поле": "путь.в.json"} — нормализует
-#                           #   каждый элемент к единому набору полей,
-#                           #   удобному для сравнения между источниками.
-#                           #   Пусто -> элементы сохраняются как есть.
-#   "max_pages": 50          # страховка от бесконечного обхода при paginate
-# }
-#
-# auth_mode задаёт способ взаимодействия с этим конкретным эндпоинтом:
-#   "none"  — без авторизации вообще (открытый/публичный API, запрос идёт
-#             без заголовка Authorization);
-#   "token" — свой статический токен для этого эндпоинта (поле "token");
-#             логин через браузер для него не требуется;
-#   "login" — общий токен, полученный через auth.get_auth_token()
-#             (Username/Password выше).
-#
-# Если auth_mode не задан (старый settings.json) — определяется
-# автоматически: непустой token -> "token", иначе -> "login".
-API_ENDPOINTS = [
-    {"path": "/data/items", "token": "", "auth_mode": "login",
-     "paginate": False, "items_path": "", "mapping": {}, "max_pages": 50},
-    {"path": "/data/status", "token": "", "auth_mode": "login",
-     "paginate": False, "items_path": "", "mapping": {}, "max_pages": 50},
-]
-
-SETTINGS_PATH = os.path.join(DATA_DIR, "settings.json")
-
-
-def _apply_overrides():
-    """
-    Подтягивает settings.json, если он есть, и переопределяет дефолты выше.
-    Переменные окружения имеют наивысший приоритет и не переопределяются.
-    """
-    global SITE_URL, API_BASE_URL, LOGIN_URL, USERNAME, PASSWORD
-    global CHECK_INTERVAL_SECONDS, HEADLESS_BROWSER, API_ENDPOINTS
-
-    # Переменные окружения уже применены выше и имеют высший приоритет
-    # settings.json используется только если переменные не заданы
+class EndpointConfig(BaseModel):
+    """Конфигурация одного API эндпоинта."""
+    path: str
+    token: str = ""
+    auth_mode: str = "login"
+    paginate: bool = False
+    items_path: str = ""
+    mapping: Dict[str, str] = Field(default_factory=dict)
+    max_pages: int = 50
     
-    if not os.path.exists(SETTINGS_PATH):
-        return
+    @field_validator('auth_mode')
+    @classmethod
+    def validate_auth_mode(cls, v: str) -> str:
+        if v not in ("none", "token", "login"):
+            return "login"
+        return v
+    
+    @field_validator('max_pages')
+    @classmethod
+    def validate_max_pages(cls, v: int) -> int:
+        return max(1, min(v, 1000))
 
+
+class ParserConfig(BaseSettings):
+    """Основная конфигурация парсера с валидацией через Pydantic."""
+    
+    model_config = SettingsConfigDict(
+        env_prefix="PARSER_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore"
+    )
+    
+    # Базовые URL
+    site_url: HttpUrl = Field(default="https://example.com", description="Базовый URL сайта")
+    api_base_url: HttpUrl = Field(default="https://api.example.com/v1", description="Базовый URL API")
+    
+    # Авторизация
+    username: str = Field(default="", description="Имя пользователя")
+    password: str = Field(default="", description="Пароль")
+    
+    # Настройки мониторинга
+    check_interval_seconds: int = Field(default=300, ge=10, le=86400, description="Интервал проверки в секундах")
+    headless_browser: bool = Field(default=True, description="Режим браузера без GUI")
+    
+    # Браузер
+    browser_type: str = Field(default="chromium", description="Тип браузера (chromium, firefox, webkit)")
+    
+    # Настройки краулера
+    crawl_max_pages: int = Field(default=200, ge=1, le=10000, description="Максимум страниц для краулинга")
+    crawl_delay_seconds: float = Field(default=1.0, ge=0.1, le=60.0, description="Задержка между запросами краулера")
+    crawl_include_query: bool = Field(default=False, description="Включать query параметры в URL при краулинге")
+    
+    # Эндпоинты API
+    endpoints: List[EndpointConfig] = Field(default_factory=lambda: [
+        EndpointConfig(path="/data/items"),
+        EndpointConfig(path="/data/status"),
+    ])
+    
+    @property
+    def login_url(self) -> str:
+        return f"{self.site_url}/login"
+    
+    @property
+    def data_dir(self) -> str:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(base_dir, "data")
+    
+    @property
+    def db_path(self) -> str:
+        return os.path.join(self.data_dir, "changes.db")
+    
+    @property
+    def settings_path(self) -> str:
+        return os.path.join(self.data_dir, "settings.json")
+    
+    @property
+    def crawl_output_dir(self) -> str:
+        return os.path.join(self.data_dir, "pages")
+    
+    @field_validator('site_url', 'api_base_url', mode='before')
+    @classmethod
+    def coerce_url(cls, v: Any) -> str:
+        if isinstance(v, str):
+            return v
+        return str(v)
+
+
+def _load_settings_json(config: ParserConfig) -> Dict[str, Any]:
+    """Загрузить настройки из JSON файла если он существует."""
+    if not os.path.exists(config.settings_path):
+        logger.info("config_settings_file_not_found", path=config.settings_path)
+        return {}
+    
     try:
-        with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+        with open(config.settings_path, "r", encoding="utf-8") as f:
             data = json.load(f)
+        logger.info("config_settings_loaded", path=config.settings_path)
+        return data
     except (OSError, json.JSONDecodeError) as e:
-        print(f"[config] Не удалось прочитать {SETTINGS_PATH}: {e}")
-        return
+        logger.error("config_settings_load_error", path=config.settings_path, error=str(e))
+        return {}
 
-    # Применяем настройки из JSON только если они не заданы через ENV
-    if "site_url" in data and data["site_url"] and not os.getenv("PARSER_SITE_URL"):
-        SITE_URL = data["site_url"]
-        LOGIN_URL = f"{SITE_URL}/login"
 
-    if "api_base_url" in data and data["api_base_url"] and not os.getenv("PARSER_API_BASE_URL"):
-        API_BASE_URL = data["api_base_url"]
-
-    if "username" in data and not os.getenv("PARSER_USERNAME"):
-        USERNAME = data["username"]
-
-    if "password" in data and not os.getenv("PARSER_PASSWORD"):
-        PASSWORD = data["password"]
-
-    if "check_interval_seconds" in data and not os.getenv("PARSER_CHECK_INTERVAL"):
-        try:
-            CHECK_INTERVAL_SECONDS = int(data["check_interval_seconds"])
-        except (TypeError, ValueError):
-            pass
-
-    if "headless_browser" in data and not os.getenv("PARSER_HEADLESS"):
-        HEADLESS_BROWSER = bool(data["headless_browser"])
-
-    endpoints = data.get("endpoints")
-    if endpoints:
+def _merge_settings(settings_data: Dict[str, Any], env_overrides: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Объединить настройки: ENV имеет приоритет над JSON.
+    Возвращает финальный словарь для инициализации ParserConfig.
+    """
+    merged = {}
+    
+    # Маппинг ключей JSON на поля Pydantic
+    key_mapping = {
+        "site_url": "site_url",
+        "api_base_url": "api_base_url",
+        "username": "username",
+        "password": "password",
+        "check_interval_seconds": "check_interval_seconds",
+        "headless_browser": "headless_browser",
+        "browser_type": "browser_type",
+        "crawl_max_pages": "crawl_max_pages",
+        "crawl_delay_seconds": "crawl_delay_seconds",
+        "crawl_include_query": "crawl_include_query",
+    }
+    
+    for json_key, pydantic_key in key_mapping.items():
+        # ENV уже загружен pydantic-settings автоматически, используем только JSON
+        if json_key in settings_data and settings_data[json_key]:
+            merged[pydantic_key] = settings_data[json_key]
+            logger.debug("config_override_applied", key=pydantic_key, source="settings.json")
+    
+    # Обработка endpoints
+    if "endpoints" in settings_data and settings_data["endpoints"]:
         parsed_endpoints = []
-        for e in endpoints:
+        for e in settings_data["endpoints"]:
             path = e.get("path", "")
             if not path:
                 continue
-
+            
             token = e.get("token", "")
             auth_mode = e.get("auth_mode")
-
+            
             if auth_mode not in ("none", "token", "login"):
-                # Старый settings.json без auth_mode: определяем режим
-                # по наличию токена, как раньше.
                 auth_mode = "token" if token else "login"
-
+            
             mapping = e.get("mapping")
             if not isinstance(mapping, dict):
                 mapping = {}
-
+            
             try:
                 max_pages = int(e.get("max_pages", 50))
             except (TypeError, ValueError):
                 max_pages = 50
-
+            
             parsed_endpoints.append({
                 "path": path,
                 "token": token,
@@ -186,8 +189,43 @@ def _apply_overrides():
                 "mapping": mapping,
                 "max_pages": max_pages,
             })
+        
+        merged["endpoints"] = parsed_endpoints
+        logger.info("config_endpoints_loaded", count=len(parsed_endpoints))
+    
+    return merged
 
-        API_ENDPOINTS = parsed_endpoints
+
+def get_config() -> ParserConfig:
+    """Получить конфигурацию с учётом всех источников."""
+    logger.info("config_loading_started")
+    
+    settings_data = _load_settings_json(ParserConfig())
+    merged = _merge_settings(settings_data, {})
+    
+    config = ParserConfig(**merged)
+    logger.info("config_loading_completed")
+    
+    return config
 
 
-_apply_overrides()
+# Глобальный экземпляр конфигурации
+config = get_config()
+
+# Экспортируем свойства для обратной совместимости
+SITE_URL = str(config.site_url)
+API_BASE_URL = str(config.api_base_url)
+LOGIN_URL = config.login_url
+USERNAME = config.username
+PASSWORD = config.password
+CHECK_INTERVAL_SECONDS = config.check_interval_seconds
+HEADLESS_BROWSER = config.headless_browser
+BROWSER_TYPE = config.browser_type
+CRAWL_MAX_PAGES = config.crawl_max_pages
+CRAWL_DELAY_SECONDS = config.crawl_delay_seconds
+CRAWL_INCLUDE_QUERY = config.crawl_include_query
+DATA_DIR = config.data_dir
+DB_PATH = config.db_path
+CRAWL_OUTPUT_DIR = config.crawl_output_dir
+SETTINGS_PATH = config.settings_path
+API_ENDPOINTS = [e.model_dump() for e in config.endpoints]

@@ -2,7 +2,7 @@
 
 import sys
 import time
-import logging
+import structlog
 from auth import get_auth_token
 from api_client import APIClient
 from detector import detect_and_store
@@ -11,20 +11,12 @@ from paginator import fetch_all_pages, DEFAULT_MAX_PAGES
 from storage import init_db
 from config import CHECK_INTERVAL_SECONDS, API_ENDPOINTS
 
-# По умолчанию logging пишет в stderr — GUI на C# помечает весь stderr
-# как ошибку. Явно направляем в stdout, чтобы обычные INFO-сообщения
-# не подсвечивались как [ERR].
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    stream=sys.stdout,
-)
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 def check_api_changes(client: APIClient, endpoint_path: str, endpoint_cfg: dict):
     try:
-        logger.info(f"Проверка API: {endpoint_path}")
+        logger.info("api_check_started", endpoint=endpoint_path)
 
         paginate = endpoint_cfg.get("paginate", False)
         items_path = endpoint_cfg.get("items_path") or None
@@ -37,20 +29,18 @@ def check_api_changes(client: APIClient, endpoint_path: str, endpoint_cfg: dict)
             items = fetch_all_pages(client, endpoint_path, items_path, max_pages)
             items = map_items(items, mapping)
             data = items
-            logger.info(f"  итого элементов: {len(items)}")
+            logger.info("api_pagination_completed", endpoint=endpoint_path, items_count=len(items))
         else:
             # Старое поведение: один запрос, весь ответ как есть.
             data = client.get(endpoint_path)
 
         result = detect_and_store(f"api:{endpoint_path}", data)
         if result['has_changed']:
-            logger.warning(f"Изменения в {endpoint_path}:")
-            for c in result['changes']:
-                logger.warning(f"  - {c}")
+            logger.warning("changes_detected", endpoint=endpoint_path, changes=result['changes'])
         else:
-            logger.info(f"Нет изменений в {endpoint_path}")
+            logger.info("no_changes_detected", endpoint=endpoint_path)
     except Exception as e:
-        logger.error(f"Ошибка API {endpoint_path}: {e}")
+        logger.error("api_check_error", endpoint=endpoint_path, error=str(e))
 
 
 def build_clients(shared_token: str | None) -> dict:
@@ -67,19 +57,19 @@ def build_clients(shared_token: str | None) -> dict:
         mode = entry.get("auth_mode", "login")
 
         if mode == "none":
-            logger.info(f"{path}: без авторизации (открытый источник)")
+            logger.info("client_created_no_auth", endpoint=path)
             clients[path] = (APIClient(None), entry)
 
         elif mode == "token":
             token = entry.get("token")
             if not token:
-                logger.warning(f"Для {path} режим 'token', но токен не задан — пропускаю")
+                logger.warning("client_skip_no_token", endpoint=path)
                 continue
             clients[path] = (APIClient(token), entry)
 
         else:  # "login"
             if not shared_token:
-                logger.warning(f"Для {path} режим 'login', но общий токен не получен — пропускаю")
+                logger.warning("client_skip_no_shared_token", endpoint=path)
                 continue
             clients[path] = (APIClient(shared_token), entry)
 
@@ -87,11 +77,11 @@ def build_clients(shared_token: str | None) -> dict:
 
 
 def run_monitoring():
-    logger.info("Инициализация БД...")
+    logger.info("monitoring_initialization_started")
     init_db()
 
     if not API_ENDPOINTS:
-        logger.error("Список эндпоинтов пуст (config.API_ENDPOINTS). Нечего мониторить.")
+        logger.error("no_endpoints_configured")
         return
 
     # Общий токен через логин нужен, только если хотя бы у одного
@@ -102,35 +92,35 @@ def run_monitoring():
     shared_token = None
 
     if needs_shared_token:
-        logger.info("Авторизация (логин через Playwright)...")
+        logger.info("authentication_started")
         try:
             shared_token = get_auth_token()
-            logger.info("Успешно")
+            logger.info("authentication_completed_successfully")
         except Exception as e:
-            logger.error(f"Ошибка авторизации: {e}")
+            logger.error("authentication_failed", error=str(e))
             # Не выходим сразу — возможно, у части эндпоинтов режим "none"/"token"
     else:
-        logger.info("Ни одному эндпоинту не нужен общий логин-токен — логин через браузер пропущен.")
+        logger.info("shared_login_not_required")
 
     clients = build_clients(shared_token)
     if not clients:
-        logger.error("Не удалось получить токен ни для одного эндпоинта. Останов.")
+        logger.error("no_clients_created")
         return
 
-    logger.info(f"Мониторинг запущен (интервал: {CHECK_INTERVAL_SECONDS}с, эндпоинтов: {len(clients)})")
+    logger.info("monitoring_started", interval=CHECK_INTERVAL_SECONDS, endpoints_count=len(clients))
 
     while True:
         try:
             for path, (client, endpoint_cfg) in clients.items():
                 check_api_changes(client, path, endpoint_cfg)
 
-            logger.info(f"Ожидание {CHECK_INTERVAL_SECONDS}с...")
+            logger.info("waiting_for_next_check", interval=CHECK_INTERVAL_SECONDS)
             time.sleep(CHECK_INTERVAL_SECONDS)
         except KeyboardInterrupt:
-            logger.info("Остановлен")
+            logger.info("monitoring_stopped_by_user")
             break
         except Exception as e:
-            logger.error(f"Ошибка: {e}")
+            logger.error("monitoring_loop_error", error=str(e))
             time.sleep(60)
 
 

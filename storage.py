@@ -4,10 +4,13 @@ import sqlite3
 import json
 import hashlib
 import os
+import structlog
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from contextlib import contextmanager
 from config import DB_PATH, DATA_DIR
+
+logger = structlog.get_logger()
 
 
 class DatabaseError(Exception):
@@ -35,6 +38,8 @@ def get_db_connection():
 
 def init_db():
     os.makedirs(DATA_DIR, exist_ok=True)
+    logger.info("database_initialization_started", db_path=DB_PATH)
+    
     with get_db_connection() as conn:
         cursor = conn.cursor()
         
@@ -69,6 +74,8 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON snapshots(timestamp)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_change_snapshot ON change_history(snapshot_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_change_type ON change_history(change_type)")
+        
+        logger.info("database_initialization_completed")
 
 
 def save_snapshot(endpoint: str, data: Any, raw_data: Optional[str] = None, 
@@ -105,9 +112,13 @@ def save_snapshot(endpoint: str, data: Any, raw_data: Optional[str] = None,
             (endpoint, data_hash, raw_data or data_str, has_changed)
         )
         
+        snapshot_id = cursor.lastrowid
+        
+        if has_changed:
+            logger.info("data_changed_detected", endpoint=endpoint, snapshot_id=snapshot_id)
+        
         # Сохраняем детализацию изменений
         if has_changed and changes and last_record:
-            snapshot_id = cursor.lastrowid
             for change in changes:
                 # Парсим описание изменения (формат: "Тип: поле: старое -> новое")
                 change_type = "modified"

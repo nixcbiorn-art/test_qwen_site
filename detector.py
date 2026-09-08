@@ -1,8 +1,11 @@
 """Детектор изменений с улучшенной детализацией."""
 
 import json
+import structlog
 from typing import Any, Dict, List, Tuple
 from storage import save_snapshot, get_latest_snapshot
+
+logger = structlog.get_logger()
 
 
 def compare_data(old_data: Any, new_data: Any) -> Tuple[bool, List[str]]:
@@ -99,6 +102,8 @@ def detect_and_store(endpoint: str, new_data: Any) -> Dict:
         has_changed = True
         changes = ["Первый снимок данных"]
 
+    logger.info("change_detection_completed", endpoint=endpoint, has_changed=has_changed, changes_count=len(changes))
+    
     # Передаём изменения для сохранения в историю
     save_snapshot(endpoint, new_data, changes=changes if has_changed else None)
     
