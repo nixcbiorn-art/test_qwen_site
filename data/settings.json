@@ -1,0 +1,41 @@
+{
+  "site_url": "",
+  "api_base_url": "https://api.redcat.ai/api/v2",
+  "username": "",
+  "password": "",
+  "check_interval_seconds": 10,
+  "headless_browser": true,
+  "selected_script": "monitor",
+  "endpoints": [
+    {
+      "path": "estate/housing_complexes?filter%5Bcountry_id%5D=2017370\u0026filter%5Bregion_id%5D=20003969\u0026sort=created_at_desc\u0026filter[active_in_admin]=true\u0026page[size]=12",
+      "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiMzcxYWYwYmZjNGI3NDU0ZWNjNDUxZDVmOTI3MDRjMjczMGE0MDRiZGQ4NzM4NWIzYjRhNGRkMmNhOGNkYTAxZWViYzU1YmFhZGI2YWEyYTkiLCJpYXQiOjE3ODcxMjI3MjEuNTExMjUsIm5iZiI6MTc4NzEyMjcyMS41MTEyNTIsImV4cCI6MTc4OTcxNDcyMS40OTgzNTQsInN1YiI6IjE5OTA5Iiwic2NvcGVzIjpbXX0.SSkdAqzUm8LFA5koauUlYgGwREfuB2C0wFXBX8qtBB4KN9eYDC-Y0iV3vEJuLEMClb3unBlOnE2Qtkth_yR6k9JrtJA-pYNyeZW-K-MiiX-oBLE7q4cmqtxWfvq0MwOWHFIsO6Ic84zIlUeKElLlN-U5PVbS4XG8hMoECMkwRQvrnIY22Z_QpvMfPQSRJ1BtM4OggHgvZMdGz524cAMclQ5ApkDikCeaOS5IIorPQEaVklwWrOUTFVmWJFjXUu1wSJmy2kXsLygm88Nf9hsAGbpRBj6scWIk_CUlQiBR9h6EIWMYJOGsE71rGXOlRf6dOmE9E9vZH3F74C-z0qr7IW_4d0GS5WP3DCJdoZqv78r_OoPY4MLjnbjVcZi8UnFHXUh_TVuhFVZqr6qPu9wx7wtTHBQ3TNABh3iilMPpItpMDj87F-qFSLSObjO7tga_5bDn0BIJ0APE-XPAoUMOxcM1xSjYZGGY3wobcS36TJfx40fg7tCFegh3ohLbg6NmbPPivQdmBdUaBEQQuYjp0dd0JeK5HF3p9QTvkguOS6nIzYG8dn3EtnOkmQEs9UP0_ha9uSScUDllFVgJ23ql4TLOebW-bX-zqFLbhu9iR-YukLxIQb6YnO-6hPb5m-Aadx1Y6nx0AfEoQGliwS3A76vg7AUP1Nfg9oJf8YZY7Wc",
+      "auth_mode": "token"
+    },
+    {
+      "path": "estate/housing_complexes/listing_apartments?filter%5Bcountry_id%5D=2017370\u0026filter%5Bregion_id%5D=20003956\u0026filter%5Bdeveloper_id%5D=721\u0026sort=price_asc\u0026filter[active_in_admin]=true\u0026page[size]=50\u0026page[number]=1",
+      "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiMzcxYWYwYmZjNGI3NDU0ZWNjNDUxZDVmOTI3MDRjMjczMGE0MDRiZGQ4NzM4NWIzYjRhNGRkMmNhOGNkYTAxZWViYzU1YmFhZGI2YWEyYTkiLCJpYXQiOjE3ODcxMjI3MjEuNTExMjUsIm5iZiI6MTc4NzEyMjcyMS41MTEyNTIsImV4cCI6MTc4OTcxNDcyMS40OTgzNTQsInN1YiI6IjE5OTA5Iiwic2NvcGVzIjpbXX0.SSkdAqzUm8LFA5koauUlYgGwREfuB2C0wFXBX8qtBB4KN9eYDC-Y0iV3vEJuLEMClb3unBlOnE2Qtkth_yR6k9JrtJA-pYNyeZW-K-MiiX-oBLE7q4cmqtxWfvq0MwOWHFIsO6Ic84zIlUeKElLlN-U5PVbS4XG8hMoECMkwRQvrnIY22Z_QpvMfPQSRJ1BtM4OggHgvZMdGz524cAMclQ5ApkDikCeaOS5IIorPQEaVklwWrOUTFVmWJFjXUu1wSJmy2kXsLygm88Nf9hsAGbpRBj6scWIk_CUlQiBR9h6EIWMYJOGsE71rGXOlRf6dOmE9E9vZH3F74C-z0qr7IW_4d0GS5WP3DCJdoZqv78r_OoPY4MLjnbjVcZi8UnFHXUh_TVuhFVZqr6qPu9wx7wtTHBQ3TNABh3iilMPpItpMDj87F-qFSLSObjO7tga_5bDn0BIJ0APE-XPAoUMOxcM1xSjYZGGY3wobcS36TJfx40fg7tCFegh3ohLbg6NmbPPivQdmBdUaBEQQuYjp0dd0JeK5HF3p9QTvkguOS6nIzYG8dn3EtnOkmQEs9UP0_ha9uSScUDllFVgJ23ql4TLOebW-bX-zqFLbhu9iR-YukLxIQb6YnO-6hPb5m-Aadx1Y6nx0AfEoQGliwS3A76vg7AUP1Nfg9oJf8YZY7Wc",
+      "auth_mode": "token"
+    },
+    {
+      "path": "https://fsk.ru/api/v3/flats?offset=18\u0026limit=20\u0026sort=price\u0026order=1\u0026city=1",
+      "token": "",
+      "auth_mode": "none"
+    },
+    {
+      "path": "https://samolet.ru/backend/api/v3/flats/?limit=12\u0026has_flashsale=false\u0026discount=true\u0026free=1\u0026ordering=filter_price_package",
+      "token": "",
+      "auth_mode": "none"
+    },
+    {
+      "path": "/estate/housing_complexes/listing_apartments?filter%5Bcountry_id%5D=2017370\u0026filter%5Bregion_id%5D=20003956\u0026filter%5Bdeveloper_id%5D=261\u0026sort=price_asc\u0026filter[active_in_admin]=true\u0026page[size]=50\u0026page[number]=1",
+      "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiMzcxYWYwYmZjNGI3NDU0ZWNjNDUxZDVmOTI3MDRjMjczMGE0MDRiZGQ4NzM4NWIzYjRhNGRkMmNhOGNkYTAxZWViYzU1YmFhZGI2YWEyYTkiLCJpYXQiOjE3ODcxMjI3MjEuNTExMjUsIm5iZiI6MTc4NzEyMjcyMS41MTEyNTIsImV4cCI6MTc4OTcxNDcyMS40OTgzNTQsInN1YiI6IjE5OTA5Iiwic2NvcGVzIjpbXX0.SSkdAqzUm8LFA5koauUlYgGwREfuB2C0wFXBX8qtBB4KN9eYDC-Y0iV3vEJuLEMClb3unBlOnE2Qtkth_yR6k9JrtJA-pYNyeZW-K-MiiX-oBLE7q4cmqtxWfvq0MwOWHFIsO6Ic84zIlUeKElLlN-U5PVbS4XG8hMoECMkwRQvrnIY22Z_QpvMfPQSRJ1BtM4OggHgvZMdGz524cAMclQ5ApkDikCeaOS5IIorPQEaVklwWrOUTFVmWJFjXUu1wSJmy2kXsLygm88Nf9hsAGbpRBj6scWIk_CUlQiBR9h6EIWMYJOGsE71rGXOlRf6dOmE9E9vZH3F74C-z0qr7IW_4d0GS5WP3DCJdoZqv78r_OoPY4MLjnbjVcZi8UnFHXUh_TVuhFVZqr6qPu9wx7wtTHBQ3TNABh3iilMPpItpMDj87F-qFSLSObjO7tga_5bDn0BIJ0APE-XPAoUMOxcM1xSjYZGGY3wobcS36TJfx40fg7tCFegh3ohLbg6NmbPPivQdmBdUaBEQQuYjp0dd0JeK5HF3p9QTvkguOS6nIzYG8dn3EtnOkmQEs9UP0_ha9uSScUDllFVgJ23ql4TLOebW-bX-zqFLbhu9iR-YukLxIQb6YnO-6hPb5m-Aadx1Y6nx0AfEoQGliwS3A76vg7AUP1Nfg9oJf8YZY7Wc",
+      "auth_mode": "token"
+    },
+    {
+      "path": "/estate/housing_complexes?filter%5Bcountry_id%5D=2017370\u0026filter%5Bregion_id%5D=20003956\u0026filter%5Bdeveloper_id%5D=261\u0026sort=created_at_desc\u0026filter[active_in_admin]=true\u0026page[size]=12",
+      "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiMzcxYWYwYmZjNGI3NDU0ZWNjNDUxZDVmOTI3MDRjMjczMGE0MDRiZGQ4NzM4NWIzYjRhNGRkMmNhOGNkYTAxZWViYzU1YmFhZGI2YWEyYTkiLCJpYXQiOjE3ODcxMjI3MjEuNTExMjUsIm5iZiI6MTc4NzEyMjcyMS41MTEyNTIsImV4cCI6MTc4OTcxNDcyMS40OTgzNTQsInN1YiI6IjE5OTA5Iiwic2NvcGVzIjpbXX0.SSkdAqzUm8LFA5koauUlYgGwREfuB2C0wFXBX8qtBB4KN9eYDC-Y0iV3vEJuLEMClb3unBlOnE2Qtkth_yR6k9JrtJA-pYNyeZW-K-MiiX-oBLE7q4cmqtxWfvq0MwOWHFIsO6Ic84zIlUeKElLlN-U5PVbS4XG8hMoECMkwRQvrnIY22Z_QpvMfPQSRJ1BtM4OggHgvZMdGz524cAMclQ5ApkDikCeaOS5IIorPQEaVklwWrOUTFVmWJFjXUu1wSJmy2kXsLygm88Nf9hsAGbpRBj6scWIk_CUlQiBR9h6EIWMYJOGsE71rGXOlRf6dOmE9E9vZH3F74C-z0qr7IW_4d0GS5WP3DCJdoZqv78r_OoPY4MLjnbjVcZi8UnFHXUh_TVuhFVZqr6qPu9wx7wtTHBQ3TNABh3iilMPpItpMDj87F-qFSLSObjO7tga_5bDn0BIJ0APE-XPAoUMOxcM1xSjYZGGY3wobcS36TJfx40fg7tCFegh3ohLbg6NmbPPivQdmBdUaBEQQuYjp0dd0JeK5HF3p9QTvkguOS6nIzYG8dn3EtnOkmQEs9UP0_ha9uSScUDllFVgJ23ql4TLOebW-bX-zqFLbhu9iR-YukLxIQb6YnO-6hPb5m-Aadx1Y6nx0AfEoQGliwS3A76vg7AUP1Nfg9oJf8YZY7Wc",
+      "auth_mode": "token"
+    }
+  ]
+}

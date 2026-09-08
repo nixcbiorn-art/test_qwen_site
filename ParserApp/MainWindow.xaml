@@ -1,0 +1,173 @@
+<Window x:Class="ParserApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        Title="Parser Monitor" Height="750" Width="950"
+        MinHeight="550" MinWidth="750">
+    <Window.Resources>
+        <!-- Варианты способа взаимодействия с endpoint'ом: без авторизации
+             (открытый источник), свой токен, или логин по Username/Password -->
+        <x:Array x:Key="AuthModeOptions" Type="{x:Type sys:String}">
+            <sys:String>none</sys:String>
+            <sys:String>token</sys:String>
+            <sys:String>login</sys:String>
+        </x:Array>
+    </Window.Resources>
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Вкладки -->
+        <TabControl Grid.Row="0" x:Name="MainTabs">
+            <TabItem Header="Мониторинг">
+                <StackPanel Margin="5">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="Скрипт:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <ComboBox x:Name="CmbScriptChoice" Width="180" SelectionChanged="CmbScriptChoice_SelectionChanged">
+                            <ComboBoxItem Content="Monitor (monitor.py)" Tag="Monitor" IsSelected="True"/>
+                            <ComboBoxItem Content="Crawler (crawler.py)" Tag="Crawler"/>
+                        </ComboBox>
+
+                        <Button x:Name="BtnStart" Content="Старт" Width="100" Margin="20,0,0,0" Click="BtnStart_Click"/>
+                        <Button x:Name="BtnStop" Content="Стоп" Width="100" Margin="10,0,0,0"
+                                Click="BtnStop_Click" IsEnabled="False"/>
+                        <TextBlock x:Name="LblStatus" Text="Готов" VerticalAlignment="Center"
+                                   Margin="20,0,0,0" Foreground="Gray"/>
+                    </StackPanel>
+                    <TextBox x:Name="TxtLog" IsReadOnly="True" Height="330"
+                             VerticalScrollBarVisibility="Auto"
+                             FontFamily="Consolas" FontSize="12"
+                             Background="#1E1E1E" Foreground="#D4D4D4"/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="История">
+                <Grid Margin="5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="Endpoint:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <ComboBox x:Name="CmbEndpoint" Width="250" SelectionChanged="CmbEndpoint_SelectionChanged"/>
+                        <Button Content="Обновить" Width="100" Margin="10,0,0,0"
+                                Click="BtnRefreshHistory_Click"/>
+                    </StackPanel>
+
+                    <DataGrid Grid.Row="1" x:Name="DgSnapshots" AutoGenerateColumns="False"
+                              IsReadOnly="True" CanUserAddRows="False"
+                              AlternatingRowBackground="#2D2D2D" RowBackground="#1E1E1E"
+                              Foreground="#D4D4D4" BorderBrush="#3F3F3F">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50"/>
+                            <DataGridTextColumn Header="Время" Binding="{Binding Timestamp}" Width="150"/>
+                            <DataGridTextColumn Header="Endpoint" Binding="{Binding Endpoint}" Width="200"/>
+                            <DataGridCheckBoxColumn Header="Изменено" Binding="{Binding HasChanged}" Width="80"/>
+                            <DataGridTextColumn Header="Данные" Binding="{Binding RawData}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Настройки">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="10">
+
+                        <TextBlock Text="Общие" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Site URL:" VerticalAlignment="Center" Margin="0,4"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" x:Name="TxtSiteUrl" Margin="0,4"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="API Base URL:" VerticalAlignment="Center" Margin="0,4"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" x:Name="TxtApiBaseUrl" Margin="0,4"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Username:" VerticalAlignment="Center" Margin="0,4"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" x:Name="TxtUsername" Margin="0,4"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Password:" VerticalAlignment="Center" Margin="0,4"/>
+                            <PasswordBox Grid.Row="3" Grid.Column="1" x:Name="PwdPassword" Margin="0,4"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Интервал проверки (сек):" VerticalAlignment="Center" Margin="0,4"/>
+                            <TextBox Grid.Row="4" Grid.Column="1" x:Name="TxtCheckInterval" Width="100" HorizontalAlignment="Left" Margin="0,4"/>
+
+                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Headless browser:" VerticalAlignment="Center" Margin="0,4"/>
+                            <CheckBox Grid.Row="5" Grid.Column="1" x:Name="ChkHeadless" VerticalAlignment="Center" Margin="0,4" IsChecked="True"/>
+                        </Grid>
+
+                        <Separator Margin="0,5,0,10"/>
+
+                        <TextBlock Text="API-эндпоинты и способ доступа" FontWeight="Bold" Margin="0,0,0,4"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,8" FontSize="11">
+                            Каждая строка - отдельный endpoint для мониторинга. Для каждого выбери способ взаимодействия:
+                            <LineBreak/>• none  — без авторизации (открытый/публичный API, ничего заполнять не нужно);
+                            <LineBreak/>• token — свой статический токен для этого endpoint'а (колонка "Token");
+                            <LineBreak/>• login — общий токен, полученный логином по Username/Password выше.
+                            <LineBreak/>"Пагинация" — обойти ВСЕ страницы источника, а не только ту, что в URL.
+                            <LineBreak/>"Маппинг" — привести элементы к единому набору полей (для сравнения между источниками).
+                        </TextBlock>
+
+                        <DataGrid x:Name="DgEndpoints" AutoGenerateColumns="False"
+                                  CanUserAddRows="False" Height="180"
+                                  AlternatingRowBackground="#F5F5F5">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Endpoint (path)" Binding="{Binding Path, UpdateSourceTrigger=PropertyChanged}" Width="2*"/>
+                                <DataGridComboBoxColumn Header="Способ доступа"
+                                                         ItemsSource="{StaticResource AuthModeOptions}"
+                                                         SelectedItemBinding="{Binding AuthMode, UpdateSourceTrigger=PropertyChanged}"
+                                                         Width="110"/>
+                                <DataGridTextColumn Header="Token (для режима token)" Binding="{Binding Token, UpdateSourceTrigger=PropertyChanged}" Width="2*"/>
+                                <DataGridCheckBoxColumn Header="Пагинация&#10;(все страницы)" Binding="{Binding Paginate, UpdateSourceTrigger=PropertyChanged}" Width="90"/>
+                                <DataGridTemplateColumn Header="Маппинг" Width="100">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="Настроить…" Padding="4,1" Click="BtnEditMapping_Click"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button x:Name="BtnAddEndpoint" Content="+ Добавить endpoint" Width="160" Click="BtnAddEndpoint_Click"/>
+                            <Button x:Name="BtnRemoveEndpoint" Content="Удалить выбранный" Width="150" Margin="10,0,0,0" Click="BtnRemoveEndpoint_Click"/>
+                        </StackPanel>
+
+                        <Separator Margin="0,15,0,10"/>
+
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="BtnSaveSettings" Content="Сохранить настройки" Width="180" Height="30" Click="BtnSaveSettings_Click"/>
+                            <TextBlock x:Name="LblSettingsStatus" VerticalAlignment="Center" Margin="15,0,0,0" Foreground="Gray"/>
+                        </StackPanel>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <!-- Путь к Python -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
+            <TextBlock Text="Python:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            <TextBox x:Name="TxtPythonPath" Width="200" Text="python"/>
+            <TextBlock Text="Скрипт:" VerticalAlignment="Center" Margin="20,0,5,0"/>
+            <TextBox x:Name="TxtScriptPath" Width="300" Text="C:\parser\monitor.py" IsReadOnly="True" Background="#EEEEEE"/>
+        </StackPanel>
+    </Grid>
+</Window>
