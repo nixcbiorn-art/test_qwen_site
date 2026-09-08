@@ -1,27 +1,30 @@
-"""HTTP клиент для работы с API с поддержкой retry."""
+"""Асинхронный HTTP клиент для работы с API на основе aiohttp."""
 
-import httpx
-import time
+import asyncio
 import structlog
 from typing import Optional, Dict, Any
 from config import API_BASE_URL
 
+import aiohttp
+
 logger = structlog.get_logger()
 
 
-class APIError(Exception):
-    """Базовое исключение для ошибок API."""
+class AsyncAPIError(Exception):
+    """Базовое исключение для ошибок асинхронного API."""
     pass
 
 
-class RateLimitError(APIError):
-    """Превышен лимит запросов."""
+class AsyncRateLimitError(AsyncAPIError):
+    """Превышен лимит запросов в асинхронном режиме."""
     pass
 
 
-class APIClient:
+class AsyncAPIClient:
     def __init__(self, token: Optional[str] = None, max_retries: int = 3, base_delay: float = 1.0, base_url: Optional[str] = None):
         """
+        Асинхронный клиент для работы с API.
+        
         token=None означает работу без авторизации (открытый/публичный API):
         заголовок Authorization просто не добавляется.
         
@@ -53,17 +56,15 @@ class APIClient:
             return endpoint
         return f"{self.base_url.rstrip('/')}/{endpoint.lstrip('/')}"
 
-    def _request_with_retry(self, method: str, url: str, **kwargs) -> httpx.Response:
-        """Выполняет HTTP-запрос с экспоненциальной задержкой при ошибках."""
+    async def _request_with_retry(self, method: str, url: str, session: aiohttp.ClientSession, **kwargs) -> aiohttp.ClientResponse:
+        """Выполняет асинхронный HTTP-запрос с экспоненциальной задержкой при ошибках."""
         last_exception = None
         
         for attempt in range(self.max_retries + 1):
             try:
-                with httpx.Client(timeout=30.0) as client:
-                    response = client.request(method, url, headers=self.headers, **kwargs)
-                    
+                async with session.request(method, url, headers=self.headers, **kwargs) as response:
                     # Обработка rate limit
-                    if response.status_code == 429:
+                    if response.status == 429:
                         retry_after = response.headers.get("Retry-After")
                         if retry_after:
                             delay = float(retry_after)
@@ -71,40 +72,43 @@ class APIClient:
                             delay = self.base_delay * (2 ** attempt)
                         
                         if attempt < self.max_retries:
-                            logger.warning("rate_limit_exceeded", delay=delay, attempt=attempt + 1)
-                            time.sleep(delay)
+                            logger.warning("async_rate_limit_exceeded", delay=delay, attempt=attempt + 1)
+                            await asyncio.sleep(delay)
                             continue
                         else:
-                            raise RateLimitError(f"Превышен лимит запросов после {self.max_retries} попыток")
+                            raise AsyncRateLimitError(f"Превышен лимит запросов после {self.max_retries} попыток")
                     
                     response.raise_for_status()
-                    return response
+                    # Возвращаем копию ответа, так как оригинал закроется с контекстным менеджером
+                    return await response.json()
                     
-            except httpx.HTTPStatusError as e:
+            except aiohttp.ClientResponseError as e:
                 last_exception = e
-                if e.response.status_code >= 500 and attempt < self.max_retries:
+                if e.status >= 500 and attempt < self.max_retries:
                     delay = self.base_delay * (2 ** attempt)
-                    logger.warning("server_error", status_code=e.response.status_code, attempt=attempt + 1, max_retries=self.max_retries, delay=delay)
-                    time.sleep(delay)
+                    logger.warning("async_server_error", status_code=e.status, attempt=attempt + 1, max_retries=self.max_retries, delay=delay)
+                    await asyncio.sleep(delay)
                 else:
                     break
-            except httpx.RequestError as e:
+            except aiohttp.ClientError as e:
                 last_exception = e
                 if attempt < self.max_retries:
                     delay = self.base_delay * (2 ** attempt)
-                    logger.warning("network_error", error=str(e), attempt=attempt + 1, max_retries=self.max_retries, delay=delay)
-                    time.sleep(delay)
+                    logger.warning("async_network_error", error=str(e), attempt=attempt + 1, max_retries=self.max_retries, delay=delay)
+                    await asyncio.sleep(delay)
                 else:
                     break
         
-        raise APIError(f"Не удалось выполнить запрос после {self.max_retries} попыток: {last_exception}")
+        raise AsyncAPIError(f"Не удалось выполнить запрос после {self.max_retries} попыток: {last_exception}")
 
-    def get(self, endpoint: str, params: Optional[Dict] = None) -> Dict[str, Any]:
+    async def get(self, endpoint: str, params: Optional[Dict] = None) -> Dict[str, Any]:
+        """Асинхронный GET запрос."""
         url = self._build_url(endpoint)
-        response = self._request_with_retry("GET", url, params=params)
-        return response.json()
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+            return await self._request_with_retry("GET", url, session, params=params)
 
-    def post(self, endpoint: str, data: Optional[Dict] = None) -> Dict[str, Any]:
+    async def post(self, endpoint: str, data: Optional[Dict] = None) -> Dict[str, Any]:
+        """Асинхронный POST запрос."""
         url = self._build_url(endpoint)
-        response = self._request_with_retry("POST", url, json=data)
-        return response.json()
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+            return await self._request_with_retry("POST", url, session, json=data)
