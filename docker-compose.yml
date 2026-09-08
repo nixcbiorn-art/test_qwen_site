@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  parser:
+    build: .
+    container_name: parser-monitor
+    environment:
+      - PARSER_SITE_URL=${PARSER_SITE_URL:-https://example.com}
+      - PARSER_API_BASE_URL=${PARSER_API_BASE_URL:-https://api.example.com/v1}
+      - PARSER_USERNAME=${PARSER_USERNAME}
+      - PARSER_PASSWORD=${PARSER_PASSWORD}
+      - PARSER_CHECK_INTERVAL=${PARSER_CHECK_INTERVAL:-300}
+      - PARSER_HEADLESS=${PARSER_HEADLESS:-true}
+    volumes:
+      # Сохранение базы данных между запусками
+      - parser-data:/app/data
+      # Опционально: монтирование .env файла
+      - ${PWD}/.env:/app/.env:ro
+    restart: unless-stopped
+    # Для отладки можно раскомментировать:
+    # stdin_open: true
+    # tty: true
+
+volumes:
+  parser-data:
+    driver: local
