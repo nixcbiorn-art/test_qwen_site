@@ -1,4 +1,4 @@
-"""Детектор изменений."""
+"""Детектор изменений с улучшенной детализацией."""
 
 import json
 from typing import Any, Dict, List, Tuple
@@ -6,13 +6,14 @@ from storage import save_snapshot, get_latest_snapshot
 
 
 def compare_data(old_data: Any, new_data: Any) -> Tuple[bool, List[str]]:
+    """Сравнивает старые и новые данные, возвращает флаг изменения и список изменений."""
     if isinstance(old_data, dict) and isinstance(new_data, dict):
         return _compare_dicts(old_data, new_data)
     elif isinstance(old_data, list) and isinstance(new_data, list):
         return _compare_lists(old_data, new_data)
     else:
         changed = old_data != new_data
-        return changed, ["Значение изменено"] if changed else []
+        return changed, [f"Значение изменено: {old_data} -> {new_data}"] if changed else []
 
 
 def _compare_dicts(old: Dict, new: Dict) -> Tuple[bool, List[str]]:
@@ -80,6 +81,16 @@ def _compare_lists(old: List, new: List) -> Tuple[bool, List[str]]:
 
 
 def detect_and_store(endpoint: str, new_data: Any) -> Dict:
+    """
+    Обнаруживает изменения и сохраняет снимок данных.
+    
+    Args:
+        endpoint: Путь к эндпоинту
+        new_data: Новые данные
+        
+    Returns:
+        Dict с результатами: has_changed, changes, timestamp
+    """
     latest = get_latest_snapshot(endpoint)
     if latest:
         old_data = json.loads(latest['raw_data'])
@@ -88,5 +99,11 @@ def detect_and_store(endpoint: str, new_data: Any) -> Dict:
         has_changed = True
         changes = ["Первый снимок данных"]
 
-    save_snapshot(endpoint, new_data)
-    return {"has_changed": has_changed, "changes": changes, "timestamp": latest['timestamp'] if latest else None}
+    # Передаём изменения для сохранения в историю
+    save_snapshot(endpoint, new_data, changes=changes if has_changed else None)
+    
+    return {
+        "has_changed": has_changed, 
+        "changes": changes, 
+        "timestamp": latest['timestamp'] if latest else None
+    }
