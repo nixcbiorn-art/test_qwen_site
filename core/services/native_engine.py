@@ -36,6 +36,7 @@ class NativeEngine:
     
     def __init__(self):
         self.native_available = NATIVE_AVAILABLE
+        self.use_cpp = NATIVE_AVAILABLE  # Добавляем атрибут для тестов
     
     def calculate_rsi(self, prices: List[float], period: int = 14) -> List[float]:
         """Рассчитать RSI"""
