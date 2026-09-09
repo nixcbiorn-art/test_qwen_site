@@ -1,39 +1,32 @@
 ```
-# Compiled and build artifacts
-*.pyc
+# Python
 __pycache__/
-*.o
-*.obj
-*.so
-*.a
-*.out
-native/build/
-core/*.so
-
-# CMake build files
-CMakeCache.txt
-CMakeFiles/
-Makefile
-cmake_install.cmake
-compile_commands.json
-
-# Dependencies
-_deps/
-
-# Database files
-*.db
-
-# Logs and temp files
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
 *.log
-*.tmp
-*.swp
+.pytest_cache/
+.mypy_cache/
+.hypothesis/
 
-# Environment
-.env
-.env.local
-*.env.*
+# Database
+*.db
+*.db-journal
 
-# Editors
-.vscode/
-.idea/
+# Test files
+.tests/
+test_*.py
 ```
