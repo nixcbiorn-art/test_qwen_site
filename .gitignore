@@ -1,35 +1,48 @@
 ```
-# Python
-__pycache__/
+# Compiled Python files
 *.pyc
-*.pyo
-*.pyd
+__pycache__/
+
+# Native/Cython extensions
 *.so
+*.dylib
+*.dll
 
 # Build artifacts
 build/
 dist/
+*.egg-info/
 
 # Dependencies
 .venv/
 venv/
+env/
 .env
 .env.local
-*.env.*
-
-# Editors
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
+.env.*
 
 # Logs
 *.log
 
-# Native extensions
-*.so
-*.dylib
-*.dll
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Coverage reports
+.coverage
+coverage/
+htmlcov/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
+
+# MyPy cache
+.mypy_cache/
 ```
