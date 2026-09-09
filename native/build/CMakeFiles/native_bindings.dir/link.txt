@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC -O3 -DNDEBUG -flto -shared  -o native_bindings.cpython-312-x86_64-linux-gnu.so CMakeFiles/native_bindings.dir/bindings/bindings.cpp.o  -Wl,-rpath,/workspace/native/build: libnative_indicators.so libnative_detector.so 

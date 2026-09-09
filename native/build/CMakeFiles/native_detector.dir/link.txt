@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC -O3 -DNDEBUG -shared -Wl,-soname,libnative_detector.so -o libnative_detector.so CMakeFiles/native_detector.dir/src/detector.cpp.o 

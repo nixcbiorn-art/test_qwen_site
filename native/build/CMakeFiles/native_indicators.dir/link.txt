@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC -O3 -DNDEBUG -shared -Wl,-soname,libnative_indicators.so -o libnative_indicators.so CMakeFiles/native_indicators.dir/src/indicators.cpp.o 
