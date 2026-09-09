@@ -52,79 +52,81 @@ class StorageService(IStorage):
     
     async def save_snapshot(self, snapshot: Snapshot) -> int:
         """Сохранить снимок данных"""
-        conn = await asyncio.get_event_loop().run_in_executor(
-            None, sqlite3.connect, self.db_path
-        )
-        cursor = conn.cursor()
+        def _save():
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                INSERT INTO snapshots (endpoint, timestamp, data, checksum)
+                VALUES (?, ?, ?, ?)
+            ''', (
+                snapshot.endpoint,
+                snapshot.timestamp.isoformat(),
+                json.dumps(snapshot.data),
+                snapshot.checksum
+            ))
+            
+            snapshot_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+            return snapshot_id
         
-        cursor.execute('''
-            INSERT INTO snapshots (endpoint, timestamp, data, checksum)
-            VALUES (?, ?, ?, ?)
-        ''', (
-            snapshot.endpoint,
-            snapshot.timestamp.isoformat(),
-            json.dumps(snapshot.data),
-            snapshot.checksum
-        ))
-        
-        snapshot_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        
-        return snapshot_id
+        return await asyncio.get_event_loop().run_in_executor(None, _save)
     
     async def get_latest_snapshots(self, endpoint: str, limit: int = 100) -> List[Snapshot]:
         """Получить последние снимки по эндпоинту"""
-        conn = await asyncio.get_event_loop().run_in_executor(
-            None, sqlite3.connect, self.db_path
-        )
-        cursor = conn.cursor()
+        def _fetch():
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT id, endpoint, timestamp, data, checksum
+                FROM snapshots
+                WHERE endpoint = ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            ''', (endpoint, limit))
+            
+            rows = cursor.fetchall()
+            conn.close()
+            
+            return [
+                Snapshot(
+                    id=row[0],
+                    endpoint=row[1],
+                    timestamp=datetime.fromisoformat(row[2]),
+                    data=json.loads(row[3]),
+                    checksum=row[4]
+                )
+                for row in rows
+            ]
         
-        cursor.execute('''
-            SELECT id, endpoint, timestamp, data, checksum
-            FROM snapshots
-            WHERE endpoint = ?
-            ORDER BY timestamp DESC
-            LIMIT ?
-        ''', (endpoint, limit))
-        
-        rows = cursor.fetchall()
-        conn.close()
-        
-        return [
-            Snapshot(
-                id=row[0],
-                endpoint=row[1],
-                timestamp=datetime.fromisoformat(row[2]),
-                data=json.loads(row[3]),
-                checksum=row[4]
-            )
-            for row in rows
-        ]
+        return await asyncio.get_event_loop().run_in_executor(None, _fetch)
     
     async def save_change(self, change: ChangeRecord) -> int:
         """Сохранить запись об изменении"""
-        conn = await asyncio.get_event_loop().run_in_executor(
-            None, sqlite3.connect, self.db_path
-        )
-        cursor = conn.cursor()
+        def _save_change():
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                INSERT INTO changes (snapshot_id, timestamp, change_type, field_path, old_value, new_value)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (
+                change.snapshot_id,
+                change.timestamp.isoformat(),
+                change.change_type,
+                change.field_path,
+                json.dumps(change.old_value) if change.old_value is not None else None,
+                json.dumps(change.new_value) if change.new_value is not None else None
+            ))
+            
+            change_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+            
+            return change_id
         
-        cursor.execute('''
-            INSERT INTO changes (snapshot_id, timestamp, change_type, field_path, old_value, new_value)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (
-            change.snapshot_id,
-            change.timestamp.isoformat(),
-            change.change_type,
-            change.field_path,
-            json.dumps(change.old_value) if change.old_value is not None else None,
-            json.dumps(change.new_value) if change.new_value is not None else None
-        ))
-        
-        change_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        
-        return change_id
+        return await asyncio.get_event_loop().run_in_executor(None, _save_change)
 
 __all__ = ["StorageService"]

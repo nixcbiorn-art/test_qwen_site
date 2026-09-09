@@ -1,48 +1,39 @@
 ```
-# Compiled Python files
+# Compiled and build artifacts
 *.pyc
 __pycache__/
-
-# Native/Cython extensions
+*.o
+*.obj
 *.so
-*.dylib
-*.dll
+*.a
+*.out
+native/build/
+core/*.so
 
-# Build artifacts
-build/
-dist/
-*.egg-info/
+# CMake build files
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+compile_commands.json
 
 # Dependencies
-.venv/
-venv/
-env/
+_deps/
+
+# Database files
+*.db
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Environment
 .env
 .env.local
-.env.*
+*.env.*
 
-# Logs
-*.log
-
-# OS generated files
-.DS_Store
-Thumbs.db
-
-# Coverage reports
-.coverage
-coverage/
-htmlcov/
-
-# IDE files
+# Editors
 .vscode/
 .idea/
-*.swp
-*.swo
-
-# Temporary files
-*.tmp
-*.temp
-
-# MyPy cache
-.mypy_cache/
 ```
