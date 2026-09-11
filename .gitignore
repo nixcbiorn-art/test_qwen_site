@@ -4,29 +4,21 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-env/
-venv/
-.venv/
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
+
+# Logs and temp files
 *.log
-.pytest_cache/
-.mypy_cache/
-.hypothesis/
+*.tmp
 
-# Database
-*.db
-*.db-journal
+# Environment
+.env
+.env.local
+*.env.*
 
-# Test files
-.tests/
-test_*.py
+# Editors
+.vscode/
+.idea/
+
+# Dependencies
+.venv/
+venv/
 ```
