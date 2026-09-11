@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Дашборд - MarketMonitor{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <h1>📊 Общая сводка</h1>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>Погодные станции</h3>
+            <p class="stat-value">{{ weather_stats.total_cities }}</p>
+            <p class="stat-label">Активных городов</p>
+        </div>
+        
+        <div class="stat-card">
+            <h3>Записей в БД</h3>
+            <p class="stat-value">{{ weather_stats.total_records }}</p>
+            <p class="stat-label">Всего записей о погоде</p>
+        </div>
+        
+        <div class="stat-card">
+            <h3>Сырых данных</h3>
+            <p class="stat-value">{{ parser_stats.raw_count }}</p>
+            <p class="stat-label">Документов MongoDB</p>
+        </div>
+        
+        <div class="stat-card">
+            <h3>API запросов</h3>
+            <p class="stat-value">{{ parser_stats.api_calls }}</p>
+            <p class="stat-label">За последний час</p>
+        </div>
+    </div>
+
+    <div class="charts-section">
+        <div class="chart-container">
+            <h2>Динамика температуры</h2>
+            <div id="temperature-chart"></div>
+        </div>
+        
+        <div class="chart-container">
+            <h2>Активность парсера</h2>
+            <div id="parser-activity-chart"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Температура график
+    const tempData = {{ temperature_chart | safe }};
+    Plotly.newPlot('temperature-chart', tempData.data, tempData.layout);
+    
+    // Активность парсера
+    const parserData = {{ parser_chart | safe }};
+    Plotly.newPlot('parser-activity-chart', parserData.data, parserData.layout);
+</script>
+{% endblock %}

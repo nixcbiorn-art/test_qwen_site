@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Акции - MarketMonitor{% endblock %}
+
+{% block content %}
+<div class="stocks-page">
+    <h1>📈 Мониторинг акций</h1>
+    
+    <div class="controls">
+        <form id="add-stock-form" class="form-inline">
+            <input type="text" id="stock-symbol" placeholder="Символ акции (AAPL, GOOGL, TSLA)" required>
+            <button type="submit" class="btn btn-primary">➕ Добавить</button>
+        </form>
+    </div>
+
+    <div class="stocks-grid" id="stocks-container">
+        {% for stock in stocks %}
+        <div class="stock-card" data-symbol="{{ stock.symbol }}">
+            <h3>{{ stock.symbol }}</h3>
+            <p class="stock-price">${{ stock.price }}</p>
+            <p class="stock-change {{ 'positive' if stock.change >= 0 else 'negative' }}">
+                {{ '+' if stock.change >= 0 else '' }}{{ stock.change }}%
+            </p>
+            <button class="btn btn-sm btn-danger delete-stock" data-symbol="{{ stock.symbol }}">🗑️ Удалить</button>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="chart-section">
+        <h2>График котировок</h2>
+        <div class="chart-controls">
+            <select id="stock-select">
+                {% for stock in stocks %}
+                <option value="{{ stock.symbol }}">{{ stock.symbol }}</option>
+                {% endfor %}
+            </select>
+            <select id="timeframe">
+                <option value="1d">1 день</option>
+                <option value="5d">5 дней</option>
+                <option value="1mo">1 месяц</option>
+                <option value="6mo">6 месяцев</option>
+                <option value="1y">1 год</option>
+            </select>
+        </div>
+        <div id="stock-chart"></div>
+    </div>
+
+    <div class="indicators-section">
+        <h2>Технические индикаторы</h2>
+        <div class="indicators-grid">
+            <div class="indicator-card">
+                <h4>RSI (14)</h4>
+                <p id="rsi-value">--</p>
+            </div>
+            <div class="indicator-card">
+                <h4>SMA (50)</h4>
+                <p id="sma-value">--</p>
+            </div>
+            <div class="indicator-card">
+                <h4>EMA (20)</h4>
+                <p id="ema-value">--</p>
+            </div>
+            <div class="indicator-card">
+                <h4>MACD</h4>
+                <p id="macd-value">--</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const stockChart = {{ stock_chart | safe }};
+    Plotly.newPlot('stock-chart', stockChart.data, stockChart.layout);
+
+    // Добавление акции
+    document.getElementById('add-stock-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const symbol = document.getElementById('stock-symbol').value.toUpperCase();
+        const response = await fetch('/api/stocks/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol })
+        });
+        if (response.ok) location.reload();
+        else alert('Ошибка: ' + (await response.json()).detail);
+    };
+
+    // Удаление акции
+    document.querySelectorAll('.delete-stock').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (confirm(`Удалить акцию ${btn.dataset.symbol}?`)) {
+                await fetch(`/api/stocks/${btn.dataset.symbol}`, { method: 'DELETE' });
+                location.reload();
+            }
+        });
+    });
+
+    // Изменение графика
+    document.getElementById('stock-select').onchange = loadStockChart;
+    document.getElementById('timeframe').onchange = loadStockChart;
+
+    async function loadStockChart() {
+        const symbol = document.getElementById('stock-select').value;
+        const timeframe = document.getElementById('timeframe').value;
+        const response = await fetch(`/api/stocks/chart?symbol=${symbol}&timeframe=${timeframe}`);
+        const chart = await response.json();
+        Plotly.newPlot('stock-chart', chart.data, chart.layout);
+    }
+
+    // Загрузка индикаторов
+    async function loadIndicators() {
+        const symbol = document.getElementById('stock-select').value;
+        const response = await fetch(`/api/stocks/indicators?symbol=${symbol}`);
+        const indicators = await response.json();
+        document.getElementById('rsi-value').textContent = indicators.rsi?.toFixed(2) || '--';
+        document.getElementById('sma-value').textContent = indicators.sma?.toFixed(2) || '--';
+        document.getElementById('ema-value').textContent = indicators.ema?.toFixed(2) || '--';
+        document.getElementById('macd-value').textContent = indicators.macd?.toFixed(2) || '--';
+    }
+
+    document.getElementById('stock-select').onchange = loadIndicators;
+    loadIndicators();
+</script>
+{% endblock %}

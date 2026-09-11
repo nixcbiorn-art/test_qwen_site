@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Парсер - MarketMonitor{% endblock %}
+
+{% block content %}
+<div class="parser-page">
+    <h1>🕷️ Управление парсером</h1>
+    
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="raw-data">Сырые данные</button>
+        <button class="tab-btn" data-tab="parse-form">Новый парсинг</button>
+        <button class="tab-btn" data-tab="history">История</button>
+    </div>
+
+    <div id="raw-data" class="tab-content active">
+        <h2>Просмотр сырых данных MongoDB</h2>
+        <div class="controls">
+            <input type="text" id="search-query" placeholder="Поиск по данным...">
+            <button id="search-btn" class="btn btn-primary">🔍 Поиск</button>
+            <button id="clear-raw-btn" class="btn btn-danger">🗑️ Очистить всё</button>
+        </div>
+        <div id="raw-data-list" class="data-list">
+            {% for item in raw_data %}
+            <div class="data-item">
+                <pre>{{ item | tojson(indent=2) }}</pre>
+                <button class="btn btn-sm btn-danger delete-raw" data-id="{{ item._id }}">Удалить</button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div id="parse-form" class="tab-content">
+        <h2>Запустить парсинг</h2>
+        <form id="parse-url-form" class="form-vertical">
+            <div class="form-group">
+                <label for="url">URL для парсинга:</label>
+                <input type="url" id="url" name="url" required placeholder="https://example.com">
+            </div>
+            <div class="form-group">
+                <label for="selector">CSS селектор (опционально):</label>
+                <input type="text" id="selector" name="selector" placeholder=".content, #main, article">
+            </div>
+            <div class="form-group">
+                <label for="parser-type">Тип парсера:</label>
+                <select id="parser-type" name="parser_type">
+                    <option value="simple">Простой</option>
+                    <option value="deep">Глубокий</option>
+                    <option value="api">API</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">🚀 Запустить парсинг</button>
+        </form>
+        <div id="parse-result" class="result-box" style="display: none;"></div>
+    </div>
+
+    <div id="history" class="tab-content">
+        <h2>История парсинга</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Время</th>
+                    <th>URL</th>
+                    <th>Статус</th>
+                    <th>Размер данных</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody id="history-body">
+                {% for record in parse_history %}
+                <tr>
+                    <td>{{ record.timestamp }}</td>
+                    <td>{{ record.url }}</td>
+                    <td><span class="status status-{{ record.status }}">{{ record.status }}</span></td>
+                    <td>{{ record.data_size }} байт</td>
+                    <td>
+                        <button class="btn btn-sm btn-info view-record" data-id="{{ record.id }}">👁️ Просмотр</button>
+                        <button class="btn btn-sm btn-danger delete-record" data-id="{{ record.id }}">🗑️</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Переключение табов
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(btn.dataset.tab).classList.add('active');
+        });
+    });
+
+    // Парсинг URL
+    document.getElementById('parse-url-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const resultBox = document.getElementById('parse-result');
+        
+        resultBox.style.display = 'block';
+        resultBox.innerHTML = '⏳ Парсинг...';
+        
+        const response = await fetch('/api/parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(Object.fromEntries(formData))
+        });
+        
+        const result = await response.json();
+        resultBox.innerHTML = response.ok 
+            ? `✅ Успешно! Получено ${result.data_size} байт.` 
+            : `❌ Ошибка: ${result.detail}`;
+    };
+
+    // Удаление сырых данных
+    document.querySelectorAll('.delete-raw').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (confirm('Удалить эту запись?')) {
+                await fetch(`/api/parser/raw/${btn.dataset.id}`, { method: 'DELETE' });
+                location.reload();
+            }
+        });
+    });
+
+    // Очистка всех сырых данных
+    document.getElementById('clear-raw-btn').onclick = async () => {
+        if (confirm('Удалить ВСЕ сырые данные?')) {
+            await fetch('/api/parser/raw/clear', { method: 'DELETE' });
+            location.reload();
+        }
+    };
+</script>
+{% endblock %}

@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки - MarketMonitor{% endblock %}
+
+{% block content %}
+<div class="settings-page">
+    <h1>⚙️ Настройки системы</h1>
+    
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="general">Общие</button>
+        <button class="tab-btn" data-tab="api">API Ключи</button>
+        <button class="tab-btn" data-tab="monitoring">Мониторинг</button>
+        <button class="tab-btn" data-tab="database">База данных</button>
+    </div>
+
+    <div id="general" class="tab-content active">
+        <h2>Общие настройки</h2>
+        <form id="general-settings-form" class="form-vertical">
+            <div class="form-group">
+                <label for="refresh-interval">Интервал обновления (сек):</label>
+                <input type="number" id="refresh-interval" name="refresh_interval" value="{{ settings.refresh_interval }}" min="5">
+            </div>
+            <div class="form-group">
+                <label for="language">Язык интерфейса:</label>
+                <select id="language" name="language">
+                    <option value="ru" {% if settings.language == 'ru' %}selected{% endif %}>Русский</option>
+                    <option value="en" {% if settings.language == 'en' %}selected{% endif %}>English</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="theme">Тема оформления:</label>
+                <select id="theme" name="theme">
+                    <option value="light" {% if settings.theme == 'light' %}selected{% endif %}>Светлая</option>
+                    <option value="dark" {% if settings.theme == 'dark' %}selected{% endif %}>Тёмная</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+        </form>
+    </div>
+
+    <div id="api" class="tab-content">
+        <h2>API Ключи и доступы</h2>
+        <form id="api-keys-form" class="form-vertical">
+            <div class="form-group">
+                <label for="open-meteo-enabled">Open-Meteo API:</label>
+                <input type="checkbox" id="open-meteo-enabled" name="open_meteo_enabled" {% if settings.open_meteo_enabled %}checked{% endif %}>
+            </div>
+            <div class="form-group">
+                <label for="mongodb-uri">MongoDB URI:</label>
+                <input type="text" id="mongodb-uri" name="mongodb_uri" value="{{ settings.mongodb_uri }}" placeholder="mongodb://localhost:27017">
+            </div>
+            <div class="form-group">
+                <label for="sqlite-path">Путь к SQLite:</label>
+                <input type="text" id="sqlite-path" name="sqlite_path" value="{{ settings.sqlite_path }}" placeholder="data/weather.db">
+            </div>
+            <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+        </form>
+    </div>
+
+    <div id="monitoring" class="tab-content">
+        <h2>Настройки мониторинга</h2>
+        <form id="monitoring-settings-form" class="form-vertical">
+            <div class="form-group">
+                <label for="monitor-enabled">Мониторинг включён:</label>
+                <input type="checkbox" id="monitor-enabled" name="monitor_enabled" {% if settings.monitor_enabled %}checked{% endif %}>
+            </div>
+            <div class="form-group">
+                <label for="check-interval">Интервал проверки API (сек):</label>
+                <input type="number" id="check-interval" name="check_interval" value="{{ settings.check_interval }}" min="10">
+            </div>
+            <div class="form-group">
+                <label for="retry-count">Количество попыток (retry):</label>
+                <input type="number" id="retry-count" name="retry_count" value="{{ settings.retry_count }}" min="1" max="10">
+            </div>
+            <div class="form-group">
+                <label for="timeout">Таймаут запроса (сек):</label>
+                <input type="number" id="timeout" name="timeout" value="{{ settings.timeout }}" min="5">
+            </div>
+            <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+        </form>
+    </div>
+
+    <div id="database" class="tab-content">
+        <h2>Управление базой данных</h2>
+        <div class="db-actions">
+            <div class="action-card">
+                <h3>SQLite (Погода)</h3>
+                <p>Записей: {{ db_stats.weather_records }}</p>
+                <p>Размер: {{ db_stats.sqlite_size }} MB</p>
+                <button id="vacuum-sqlite" class="btn btn-secondary">🧹 Очистить (VACUUM)</button>
+                <button id="backup-sqlite" class="btn btn-primary">💾 Сделать бэкап</button>
+            </div>
+            
+            <div class="action-card">
+                <h3>MongoDB (Сырые данные)</h3>
+                <p>Документов: {{ db_stats.mongo_documents }}</p>
+                <p>Размер: {{ db_stats.mongo_size }} MB</p>
+                <button id="clear-mongo" class="btn btn-danger">🗑️ Очистить коллекцию</button>
+                <button id="backup-mongo" class="btn btn-primary">💾 Экспорт данных</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Переключение табов
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(btn.dataset.tab).classList.add('active');
+        });
+    });
+
+    // Сохранение общих настроек
+    document.getElementById('general-settings-form').onsubmit = async (e) => {
+        e.preventDefault();
+        await saveSettings('/api/settings/general', new FormData(e.target));
+    };
+
+    // Сохранение API настроек
+    document.getElementById('api-keys-form').onsubmit = async (e) => {
+        e.preventDefault();
+        await saveSettings('/api/settings/api', new FormData(e.target));
+    };
+
+    // Сохранение настроек мониторинга
+    document.getElementById('monitoring-settings-form').onsubmit = async (e) => {
+        e.preventDefault();
+        await saveSettings('/api/settings/monitoring', new FormData(e.target));
+    };
+
+    async function saveSettings(url, formData) {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(Object.fromEntries(formData))
+        });
+        if (response.ok) alert('✅ Настройки сохранены');
+        else alert('❌ Ошибка сохранения');
+    }
+
+    // Действия с БД
+    document.getElementById('vacuum-sqlite').onclick = async () => {
+        if (confirm('Выполнить VACUUM SQLite?')) {
+            await fetch('/api/db/sqlite/vacuum', { method: 'POST' });
+            alert('✅ SQLite очищен');
+        }
+    };
+
+    document.getElementById('backup-sqlite').onclick = async () => {
+        const response = await fetch('/api/db/sqlite/backup', { method: 'POST' });
+        const result = await response.json();
+        if (response.ok) alert(`✅ Бэкап создан: ${result.path}`);
+    };
+
+    document.getElementById('clear-mongo').onclick = async () => {
+        if (confirm('Удалить ВСЕ документы MongoDB?')) {
+            await fetch('/api/db/mongo/clear', { method: 'POST' });
+            location.reload();
+        }
+    };
+
+    document.getElementById('backup-mongo').onclick = async () => {
+        const response = await fetch('/api/db/mongo/export', { method: 'POST' });
+        const result = await response.json();
+        if (response.ok) alert(`✅ Экспорт создан: ${result.path}`);
+    };
+</script>
+{% endblock %}

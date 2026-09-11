@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Логи - MarketMonitor{% endblock %}
+
+{% block content %}
+<div class="logs-page">
+    <h1>📋 Системные логи</h1>
+    
+    <div class="controls">
+        <select id="log-level">
+            <option value="all">Все уровни</option>
+            <option value="DEBUG">DEBUG</option>
+            <option value="INFO">INFO</option>
+            <option value="WARNING">WARNING</option>
+            <option value="ERROR">ERROR</option>
+            <option value="CRITICAL">CRITICAL</option>
+        </select>
+        <input type="text" id="log-search" placeholder="Поиск по логам...">
+        <button id="filter-btn" class="btn btn-primary">🔍 Фильтр</button>
+        <button id="clear-logs-btn" class="btn btn-danger">🗑️ Очистить логи</button>
+        <button id="download-logs-btn" class="btn btn-secondary">💾 Скачать</button>
+    </div>
+
+    <div class="log-container">
+        <div class="log-header">
+            <span>Время</span>
+            <span>Уровень</span>
+            <span>Модуль</span>
+            <span>Сообщение</span>
+        </div>
+        <div id="log-entries" class="log-entries">
+            {% for log in logs %}
+            <div class="log-entry level-{{ log.level | lower }}">
+                <span class="log-time">{{ log.timestamp }}</span>
+                <span class="log-level">{{ log.level }}</span>
+                <span class="log-module">{{ log.module }}</span>
+                <span class="log-message">{{ log.message }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="pagination">
+        <button id="prev-page" class="btn btn-sm" {% if page == 1 %}disabled{% endif %}>← Назад</button>
+        <span>Страница {{ page }} из {{ total_pages }}</span>
+        <button id="next-page" class="btn btn-sm" {% if page >= total_pages %}disabled{% endif %}>Вперёд →</button>
+    </div>
+
+    <div class="stats-section">
+        <h2>Статистика логов</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Всего записей</h3>
+                <p class="stat-value">{{ log_stats.total }}</p>
+            </div>
+            <div class="stat-card">
+                <h3>Ошибки</h3>
+                <p class="stat-value error">{{ log_stats.errors }}</p>
+            </div>
+            <div class="stat-card">
+                <h3>Предупреждения</h3>
+                <p class="stat-value warning">{{ log_stats.warnings }}</p>
+            </div>
+            <div class="stat-card">
+                <h3>За последний час</h3>
+                <p class="stat-value">{{ log_stats.last_hour }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Фильтрация логов
+    document.getElementById('filter-btn').onclick = () => {
+        const level = document.getElementById('log-level').value;
+        const search = document.getElementById('log-search').value;
+        window.location.href = `/logs?level=${level}&search=${encodeURIComponent(search)}&page={{ page }}`;
+    };
+
+    // Очистка логов
+    document.getElementById('clear-logs-btn').onclick = async () => {
+        if (confirm('Очистить все логи?')) {
+            await fetch('/api/logs/clear', { method: 'POST' });
+            location.reload();
+        }
+    };
+
+    // Скачивание логов
+    document.getElementById('download-logs-btn').onclick = async () => {
+        const response = await fetch('/api/logs/download', { method: 'POST' });
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `logs_${new Date().toISOString()}.txt`;
+        a.click();
+    };
+
+    // Пагинация
+    document.getElementById('prev-page').onclick = () => {
+        if ({{ page }} > 1) window.location.href = `/logs?page={{ page - 1 }}`;
+    };
+    
+    document.getElementById('next-page').onclick = () => {
+        if ({{ page }} < {{ total_pages }}) window.location.href = `/logs?page={{ page + 1 }}`;
+    };
+
+    // Автообновление каждые 5 секунд
+    setTimeout(() => location.reload(), 5000);
+</script>
+{% endblock %}
