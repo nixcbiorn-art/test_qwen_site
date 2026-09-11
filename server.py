@@ -87,7 +87,7 @@ async def get_analytics():
     analytics = {}
     
     for city in CITIES.keys():
-        temps = [item["data"][0]["temp"] for item in history if any(c["city"] == city for c in item["data"])]
+        temps = [c["temp"] for item in history for c in item["data"] if c["city"] == city]
         if temps:
             analytics[city] = {
                 "avg_temp": sum(temps) / len(temps),
