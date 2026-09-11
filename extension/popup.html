@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { width: 350px; padding: 15px; font-family: Arial, sans-serif; }
+    h2 { margin-top: 0; color: #2196F3; }
+    .city { background: #f5f5f5; padding: 10px; margin: 5px 0; border-radius: 5px; }
+    .temp { font-size: 1.5em; font-weight: bold; color: #2196F3; }
+    .wind { color: #666; font-size: 0.9em; }
+    .status { text-align: center; color: #666; margin: 10px 0; }
+    button { width: 100%; padding: 10px; margin: 5px 0; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    button:hover { background: #1976D2; }
+    .error { color: red; text-align: center; }
+  </style>
+</head>
+<body>
+  <h2>Weather Dashboard</h2>
+  <div id="status" class="status">Loading...</div>
+  <div id="cities"></div>
+  <button id="refreshBtn">Refresh</button>
+  <button id="analyticsBtn">Show Analytics</button>
+  <div id="analytics" style="margin-top: 15px; display: none;"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
