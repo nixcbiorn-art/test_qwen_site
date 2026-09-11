@@ -10,18 +10,17 @@ import os
 import time
 
 def check_dependencies():
-    """Проверка и установка зависимостей"""
-    print("Проверка зависимостей...")
-    required = ['fastapi', 'uvicorn', 'jinja2', 'aiohttp']
+    """Проверка и установка зависимостей из requirements.txt"""
+    print("Обновление зависимостей из requirements.txt...")
+    print("=" * 60)
     
-    for package in required:
-        try:
-            __import__(package.replace('-', '_'))
-        except ImportError:
-            print(f"Установка {package}...")
-            subprocess.check_call([sys.executable, '-m', 'pip', 'install', package])
+    # Явная установка всех зависимостей из requirements.txt
+    subprocess.check_call([
+        sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt', '--upgrade'
+    ])
     
-    print("Готово.")
+    print("\nЗависимости обновлены.")
+    print("=" * 60)
 
 def run_server():
     """Запуск веб-сервера"""
