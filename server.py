@@ -71,7 +71,7 @@ async def background_collector():
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", context={"request": request, "data": weather_data})
+    return templates.TemplateResponse(name="index.html", context={"request": request, "data": weather_data})
 
 @app.get("/api/weather")
 async def get_weather():
