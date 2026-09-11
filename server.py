@@ -6,10 +6,21 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 import aiohttp
 import os
 
 app = FastAPI()
+
+# Добавляем CORS middleware для поддержки браузерных расширений
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 templates = Jinja2Templates(directory="templates")
 
 # Хранилище данных
@@ -71,7 +82,7 @@ async def background_collector():
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", context={"request": request, "data": weather_data})
+    return templates.TemplateResponse(name="index.html", context={"request": request, "data": weather_data})
 
 @app.get("/api/weather")
 async def get_weather():
