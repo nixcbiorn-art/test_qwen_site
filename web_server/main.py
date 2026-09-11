@@ -25,10 +25,16 @@ import uvicorn
 from database import get_db, WeatherDatabase
 
 app = FastAPI(title="MarketMonitor Web Server")
-templates = Jinja2Templates(directory="templates")
+
+# Пути к директориям
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 # Монтирование статических файлов
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # Инициализация БД при старте
 @app.on_event("startup")
@@ -159,7 +165,7 @@ async def dashboard(request: Request):
         "layout": {"title": "Активность парсера", "height": 400}
     }
     
-    return templates.TemplateResponse("dashboard.html", {
+    return templates.TemplateResponse(name="dashboard.html", context={
         "request": request,
         "active_page": "dashboard",
         "weather_stats": {
@@ -202,7 +208,7 @@ async def weather_page(request: Request):
                 "name": weather["city"]
             })
     
-    return templates.TemplateResponse("weather.html", {
+    return templates.TemplateResponse(name="weather.html", context={
         "request": request,
         "active_page": "weather",
         "cities": cities_data,
@@ -217,7 +223,7 @@ async def parser_page(request: Request):
     raw_data = []
     parse_history = []
     
-    return templates.TemplateResponse("parser.html", {
+    return templates.TemplateResponse(name="parser.html", context={
         "request": request,
         "active_page": "parser",
         "raw_data": raw_data,
@@ -242,7 +248,7 @@ async def stocks_page(request: Request):
         "layout": {"title": "Котировки AAPL", "height": 400}
     }
     
-    return templates.TemplateResponse("stocks.html", {
+    return templates.TemplateResponse(name="stocks.html", context={
         "request": request,
         "active_page": "stocks",
         "stocks": stocks,
@@ -258,7 +264,7 @@ async def settings_page(request: Request):
     # Статистика БД
     total_records = await db.get_total_count()
     
-    return templates.TemplateResponse("settings.html", {
+    return templates.TemplateResponse(name="settings.html", context={
         "request": request,
         "active_page": "settings",
         "settings": DEFAULT_SETTINGS,
@@ -298,7 +304,7 @@ async def logs_page(request: Request, page: int = Query(1), level: str = Query("
         "last_hour": len([l for l in LOG_BUFFER if datetime.fromisoformat(l["timestamp"]) > datetime.now() - timedelta(hours=1)])
     }
     
-    return templates.TemplateResponse("logs.html", {
+    return templates.TemplateResponse(name="logs.html", context={
         "request": request,
         "active_page": "logs",
         "logs": paginated_logs,
