@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🍽️ Управление меню и закупками</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    .tab-active { border-bottom: 3px solid #3b82f6; color: #3b82f6; font-weight: 600; }
+    .modal-overlay { background-color: rgba(0,0,0,0.5); }
+    .sticky-header { position: sticky; top: 0; z-index: 100; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useCallback } = React;
+
+    // === Типы данных ===
+    // Ingredient { id, name, unit, pricePerUnit }
+    // TechCard { id, name, category, portionSize, ingredients: [{ingredientId, quantity}], cost, sellingPrice, notes }
+    // MenuItem { techCardId, quantity }
+
+    // === Утилиты ===
+    const generateId = () => Math.random().toString(36).substr(2, 9);
+    const formatMoney = (num) => num.toFixed(2) + ' ₽';
+    const formatNumber = (num) => num.toFixed(3);
+
+    const CATEGORIES = ['Первое', 'Второе', 'Салат', 'Гарнир', 'Десерт', 'Напиток', 'Выпечка', 'Соус', 'Другое'];
+    
+    const DEFAULT_INGREDIENTS = [
+      { id: 'ing1', name: 'Мука пшеничная', unit: 'кг', pricePerUnit: 45 },
+      { id: 'ing2', name: 'Яйцо куриное', unit: 'шт', pricePerUnit: 8.5 },
+      { id: 'ing3', name: 'Молоко 3.2%', unit: 'л', pricePerUnit: 85 },
+      { id: 'ing4', name: 'Сахар', unit: 'кг', pricePerUnit: 60 },
+      { id: 'ing5', name: 'Соль', unit: 'кг', pricePerUnit: 25 },
+      { id: 'ing6', name: 'Масло подсолнечное', unit: 'л', pricePerUnit: 120 },
+      { id: 'ing7', name: 'Картофель', unit: 'кг', pricePerUnit: 35 },
+      { id: 'ing8', name: 'Говядина', unit: 'кг', pricePerUnit: 450 },
+      { id: 'ing9', name: 'Свёкла', unit: 'кг', pricePerUnit: 40 },
+      { id: 'ing10', name: 'Капуста', unit: 'кг', pricePerUnit: 30 },
+      { id: 'ing11', name: 'Морковь', unit: 'кг', pricePerUnit: 45 },
+      { id: 'ing12', name: 'Лук репчатый', unit: 'кг', pricePerUnit: 35 },
+      { id: 'ing13', name: 'Томатная паста', unit: 'кг', pricePerUnit: 180 },
+    ];
+
+    const DEFAULT_TECH_CARDS = [
+      {
+        id: 'tc1',
+        name: 'Борщ',
+        category: 'Первое',
+        portionSize: 300,
+        ingredients: [
+          { ingredientId: 'ing8', quantity: 0.08 },
+          { ingredientId: 'ing7', quantity: 0.1 },
+          { ingredientId: 'ing9', quantity: 0.06 },
+          { ingredientId: 'ing10', quantity: 0.05 },
+          { ingredientId: 'ing11', quantity: 0.03 },
+          { ingredientId: 'ing12', quantity: 0.02 },
+          { ingredientId: 'ing13', quantity: 0.02 },
+          { ingredientId: 'ing6', quantity: 0.01 },
+          { ingredientId: 'ing5', quantity: 0.005 },
+          { ingredientId: 'ing4', quantity: 0.003 },
+        ],
+        cost: 0,
+        sellingPrice: 150,
+        notes: 'Варить бульон 2 часа, овощи пассеровать отдельно.'
+      },
+      {
+        id: 'tc2',
+        name: 'Котлета с гарниром',
+        category: 'Второе',
+        portionSize: 250,
+        ingredients: [
+          { ingredientId: 'ing8', quantity: 0.1 },
+          { ingredientId: 'ing7', quantity: 0.15 },
+          { ingredientId: 'ing2', quantity: 1 },
+          { ingredientId: 'ing1', quantity: 0.02 },
+          { ingredientId: 'ing12', quantity: 0.02 },
+          { ingredientId: 'ing6', quantity: 0.015 },
+          { ingredientId: 'ing5', quantity: 0.003 },
+        ],
+        cost: 0,
+        sellingPrice: 220,
+        notes: 'Фарш пропустить через мясорубку, сформировать котлеты.'
+      },
+      {
+        id: 'tc3',
+        name: 'Салат "Цезарь"',
+        category: 'Салат',
+        portionSize: 200,
+        ingredients: [
+          { ingredientId: 'ing2', quantity: 2 },
+          { ingredientId: 'ing6', quantity: 0.02 },
+          { ingredientId: 'ing5', quantity: 0.002 },
+        ],
+        cost: 0,
+        sellingPrice: 180,
+        notes: 'Курицу обжарить, листья салата промыть.'
+      },
+      {
+        id: 'tc4',
+        name: 'Компот',
+        category: 'Напиток',
+        portionSize: 250,
+        ingredients: [
+          { ingredientId: 'ing4', quantity: 0.03 },
+          { ingredientId: 'ing3', quantity: 0.2 },
+        ],
+        cost: 0,
+        sellingPrice: 45,
+        notes: 'Варить 15 минут после закипания.'
+      },
+      {
+        id: 'tc5',
+        name: 'Пирожок с яблоком',
+        category: 'Выпечка',
+        portionSize: 100,
+        ingredients: [
+          { ingredientId: 'ing1', quantity: 0.05 },
+          { ingredientId: 'ing4', quantity: 0.02 },
+          { ingredientId: 'ing3', quantity: 0.02 },
+          { ingredientId: 'ing6', quantity: 0.01 },
+        ],
+        cost: 0,
+        sellingPrice: 60,
+        notes: 'Тесто дрожжевое, выпекать при 180°C 20 минут.'
+      },
+    ];
+
+    // === Компоненты ===
+
+    function App() {
+      const [activeTab, setActiveTab] = useState('ingredients');
+      const [ingredients, setIngredients] = useState([]);
+      const [techCards, setTechCards] = useState([]);
+      const [menu, setMenu] = useState([]);
+      const [showIngredientModal, setShowIngredientModal] = useState(false);
+      const [editingIngredient, setEditingIngredient] = useState(null);
+      const [showTechCardModal, setShowTechCardModal] = useState(false);
+      const [editingTechCard, setEditingTechCard] = useState(null);
+      const [categoryFilter, setCategoryFilter] = useState('Все');
+
+      // Загрузка данных из localStorage
+      useEffect(() => {
+        const savedIngredients = localStorage.getItem('tk_ingredients');
+        const savedTechCards = localStorage.getItem('tk_tech_cards');
+        const savedMenu = localStorage.getItem('tk_menu');
+
+        if (savedIngredients) {
+          setIngredients(JSON.parse(savedIngredients));
+        } else {
+          setIngredients(DEFAULT_INGREDIENTS);
+        }
+
+        if (savedTechCards) {
+          setTechCards(JSON.parse(savedTechCards));
+        } else {
+          // Рассчитать себестоимость для дефолтных ТК
+          const calculated = DEFAULT_TECH_CARDS.map(tc => {
+            const cost = tc.ingredients.reduce((sum, ing) => {
+              const ingredient = DEFAULT_INGREDIENTS.find(i => i.id === ing.ingredientId);
+              return sum + (ingredient ? ingredient.pricePerUnit * ing.quantity : 0);
+            }, 0);
+            return { ...tc, cost };
+          });
+          setTechCards(calculated);
+        }
+
+        if (savedMenu) {
+          setMenu(JSON.parse(savedMenu));
+        }
+      }, []);
+
+      // Сохранение данных в localStorage
+      useEffect(() => {
+        if (ingredients.length > 0) {
+          localStorage.setItem('tk_ingredients', JSON.stringify(ingredients));
+        }
+      }, [ingredients]);
+
+      useEffect(() => {
+        if (techCards.length > 0) {
+          localStorage.setItem('tk_tech_cards', JSON.stringify(techCards));
+        }
+      }, [techCards]);
+
+      useEffect(() => {
+        localStorage.setItem('tk_menu', JSON.stringify(menu));
+      }, [menu]);
+
+      // Пересчёт себестоимости ТК при изменении ингредиентов
+      useEffect(() => {
+        if (ingredients.length > 0 && techCards.length > 0) {
+          const updated = techCards.map(tc => {
+            const cost = tc.ingredients.reduce((sum, ing) => {
+              const ingredient = ingredients.find(i => i.id === ing.ingredientId);
+              return sum + (ingredient ? ingredient.pricePerUnit * ing.quantity : 0);
+            }, 0);
+            return { ...tc, cost };
+          });
+          // Обновляем только если изменилась стоимость
+          const hasChanges = updated.some((tc, i) => tc.cost !== techCards[i].cost);
+          if (hasChanges) {
+            setTechCards(updated);
+          }
+        }
+      }, [ingredients]);
+
+      const handleAddIngredient = (ingredient) => {
+        if (editingIngredient) {
+          setIngredients(ingredients.map(i => i.id === editingIngredient.id ? { ...ingredient, id: editingIngredient.id } : i));
+        } else {
+          setIngredients([...ingredients, { ...ingredient, id: generateId() }]);
+        }
+        setShowIngredientModal(false);
+        setEditingIngredient(null);
+      };
+
+      const handleDeleteIngredient = (id) => {
+        if (confirm('Удалить ингредиент?')) {
+          setIngredients(ingredients.filter(i => i.id !== id));
+        }
+      };
+
+      const handleAddTechCard = (techCard) => {
+        if (editingTechCard) {
+          setTechCards(techCards.map(tc => tc.id === editingTechCard.id ? { ...techCard, id: editingTechCard.id } : tc));
+        } else {
+          setTechCards([...techCards, { ...techCard, id: generateId() }]);
+        }
+        setShowTechCardModal(false);
+        setEditingTechCard(null);
+      };
+
+      const handleDeleteTechCard = (id) => {
+        if (confirm('Удалить технологическую карту?')) {
+          setTechCards(techCards.filter(tc => tc.id !== id));
+          setMenu(menu.filter(m => m.techCardId !== id));
+        }
+      };
+
+      const handleAddToMenu = (techCardId) => {
+        const existing = menu.find(m => m.techCardId === techCardId);
+        if (existing) {
+          setMenu(menu.map(m => m.techCardId === techCardId ? { ...m, quantity: m.quantity + 1 } : m));
+        } else {
+          setMenu([...menu, { techCardId, quantity: 1 }]);
+        }
+      };
+
+      const handleRemoveFromMenu = (techCardId) => {
+        const existing = menu.find(m => m.techCardId === techCardId);
+        if (existing && existing.quantity > 1) {
+          setMenu(menu.map(m => m.techCardId === techCardId ? { ...m, quantity: m.quantity - 1 } : m));
+        } else {
+          setMenu(menu.filter(m => m.techCardId !== techCardId));
+        }
+      };
+
+      const handleMenuQuantityChange = (techCardId, quantity) => {
+        if (quantity <= 0) {
+          setMenu(menu.filter(m => m.techCardId !== techCardId));
+        } else {
+          setMenu(menu.map(m => m.techCardId === techCardId ? { ...m, quantity } : m));
+        }
+      };
+
+      const filteredTechCards = categoryFilter === 'Все' 
+        ? techCards 
+        : techCards.filter(tc => tc.category === categoryFilter);
+
+      return (
+        <div className="min-h-screen pb-20">
+          {/* Sticky Header */}
+          <header className="sticky-header bg-white">
+            <div className="max-w-7xl mx-auto px-4 py-4">
+              <h1 className="text-2xl font-bold text-blue-600 mb-4">🍽️ Управление меню и закупками</h1>
+              <nav className="flex space-x-6 overflow-x-auto">
+                {[
+                  { id: 'ingredients', label: '📦 Ингредиенты', count: ingredients.length },
+                  { id: 'techcards', label: '📋 Тех. карты', count: techCards.length },
+                  { id: 'menu', label: '📖 Меню', count: menu.length },
+                  { id: 'purchases', label: '🛒 Закупки', count: 1 }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`pb-2 px-2 whitespace-nowrap ${activeTab === tab.id ? 'tab-active' : 'text-gray-600 hover:text-blue-500'}`}
+                  >
+                    {tab.label} {tab.count > 0 && `(${tab.count})`}
+                  </button>
+                ))}
+              </nav>
+            </div>
+          </header>
+
+          {/* Main Content */}
+          <main className="max-w-7xl mx-auto px-4 py-6">
+            {activeTab === 'ingredients' && (
+              <IngredientsTab
+                ingredients={ingredients}
+                onAdd={() => { setEditingIngredient(null); setShowIngredientModal(true); }}
+                onEdit={(ing) => { setEditingIngredient(ing); setShowIngredientModal(true); }}
+                onDelete={handleDeleteIngredient}
+              />
+            )}
+
+            {activeTab === 'techcards' && (
+              <TechCardsTab
+                techCards={techCards}
+                ingredients={ingredients}
+                categoryFilter={categoryFilter}
+                setCategoryFilter={setCategoryFilter}
+                onAdd={() => { setEditingTechCard(null); setShowTechCardModal(true); }}
+                onEdit={(tc) => { setEditingTechCard(tc); setShowTechCardModal(true); }}
+                onDelete={handleDeleteTechCard}
+              />
+            )}
+
+            {activeTab === 'menu' && (
+              <MenuTab
+                menu={menu}
+                techCards={techCards}
+                categoryFilter={categoryFilter}
+                setCategoryFilter={setCategoryFilter}
+                onAddToMenu={handleAddToMenu}
+                onRemoveFromMenu={handleRemoveFromMenu}
+                onQuantityChange={handleMenuQuantityChange}
+              />
+            )}
+
+            {activeTab === 'purchases' && (
+              <PurchasesTab menu={menu} techCards={techCards} ingredients={ingredients} />
+            )}
+          </main>
+
+          {/* Модальные окна */}
+          {showIngredientModal && (
+            <IngredientModal
+              ingredient={editingIngredient}
+              onSave={handleAddIngredient}
+              onClose={() => { setShowIngredientModal(false); setEditingIngredient(null); }}
+            />
+          )}
+
+          {showTechCardModal && (
+            <TechCardModal
+              techCard={editingTechCard}
+              ingredients={ingredients}
+              onSave={handleAddTechCard}
+              onClose={() => { setShowTechCardModal(false); setEditingTechCard(null); }}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // === Вкладка ингредиентов ===
+    function IngredientsTab({ ingredients, onAdd, onEdit, onDelete }) {
+      const [searchTerm, setSearchTerm] = useState('');
+
+      const filtered = ingredients.filter(ing =>
+        ing.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      return (
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">📦 Справочник ингредиентов</h2>
+            <button
+              onClick={onAdd}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+            >
+              + Добавить
+            </button>
+          </div>
+
+          <input
+            type="text"
+            placeholder="🔍 Поиск ингредиента..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-4 py-3 text-left">Название</th>
+                  <th className="px-4 py-3 text-left">Ед.изм.</th>
+                  <th className="px-4 py-3 text-right">Цена за ед.</th>
+                  <th className="px-4 py-3 text-center">Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(ing => (
+                  <tr key={ing.id} className="border-t hover:bg-gray-50">
+                    <td className="px-4 py-3">{ing.name}</td>
+                    <td className="px-4 py-3">{ing.unit}</td>
+                    <td className="px-4 py-3 text-right">{formatMoney(ing.pricePerUnit)}</td>
+                    <td className="px-4 py-3 text-center space-x-2">
+                      <button
+                        onClick={() => onEdit(ing)}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => onDelete(ing.id)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        🗑️
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filtered.length === 0 && (
+              <div className="p-8 text-center text-gray-500">
+                {searchTerm ? 'Ничего не найдено' : 'Нет ингредиентов. Добавьте первый!'}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // === Модальное окно ингредиента ===
+    function IngredientModal({ ingredient, onSave, onClose }) {
+      const [name, setName] = useState(ingredient?.name || '');
+      const [unit, setUnit] = useState(ingredient?.unit || 'кг');
+      const [pricePerUnit, setPricePerUnit] = useState(ingredient?.pricePerUnit || 0);
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!name.trim()) {
+          alert('Введите название ингредиента');
+          return;
+        }
+        onSave({ name: name.trim(), unit, pricePerUnit: parseFloat(pricePerUnit) || 0 });
+      };
+
+      return (
+        <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-xl font-semibold mb-4">
+              {ingredient ? '✏️ Редактировать ингредиент' : '➕ Новый ингредиент'}
+            </h3>
+            <form onSubmit={handleSubmit}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Название *</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Единица измерения</label>
+                <select
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="кг">кг</option>
+                  <option value="г">г</option>
+                  <option value="л">л</option>
+                  <option value="мл">мл</option>
+                  <option value="шт">шт</option>
+                  <option value="упак">упак</option>
+                </select>
+              </div>
+              <div className="mb-6">
+                <label className="block text-sm font-medium mb-2">Цена за единицу (₽)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={pricePerUnit}
+                  onChange={(e) => setPricePerUnit(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  type="submit"
+                  className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
+                >
+                  Сохранить
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400"
+                >
+                  Отмена
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    // === Вкладка тех. карт ===
+    function TechCardsTab({ techCards, ingredients, categoryFilter, setCategoryFilter, onAdd, onEdit, onDelete }) {
+      return (
+        <div>
+          <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
+            <h2 className="text-xl font-semibold">📋 Технологические карты</h2>
+            <button
+              onClick={onAdd}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+            >
+              + Создать ТК
+            </button>
+          </div>
+
+          <div className="mb-4 flex flex-wrap gap-2">
+            <button
+              onClick={() => setCategoryFilter('Все')}
+              className={`px-3 py-1 rounded-full ${categoryFilter === 'Все' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            >
+              Все
+            </button>
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(cat)}
+                className={`px-3 py-1 rounded-full ${categoryFilter === cat ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {techCards
+              .filter(tc => categoryFilter === 'Все' || tc.category === categoryFilter)
+              .map(tc => {
+                const markup = tc.cost > 0 ? ((tc.sellingPrice - tc.cost) / tc.cost * 100).toFixed(0) : 0;
+                return (
+                  <div key={tc.id} className="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-semibold text-lg">{tc.name}</h3>
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">{tc.category}</span>
+                    </div>
+                    <p className="text-gray-600 text-sm mb-2">Выход: {tc.portionSize} г</p>
+                    <div className="space-y-1 text-sm mb-3">
+                      <div className="flex justify-between">
+                        <span>Себестоимость:</span>
+                        <span className="font-medium">{formatMoney(tc.cost)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Цена продажи:</span>
+                        <span className="font-medium">{formatMoney(tc.sellingPrice)}</span>
+                      </div>
+                      <div className="flex justify-between text-green-600">
+                        <span>Наценка:</span>
+                        <span className="font-medium">{markup}%</span>
+                      </div>
+                    </div>
+                    {tc.notes && (
+                      <p className="text-xs text-gray-500 italic mb-3 line-clamp-2">{tc.notes}</p>
+                    )}
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => onEdit(tc)}
+                        className="flex-1 bg-blue-100 text-blue-600 py-1 rounded hover:bg-blue-200 text-sm"
+                      >
+                        ✏️ Редактировать
+                      </button>
+                      <button
+                        onClick={() => onDelete(tc.id)}
+                        className="px-3 bg-red-100 text-red-600 rounded hover:bg-red-200"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+
+          {techCards.filter(tc => categoryFilter === 'Все' || tc.category === categoryFilter).length === 0 && (
+            <div className="p-8 text-center text-gray-500 bg-white rounded-lg">
+              Нет технологических карт. Создайте первую!
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // === Модальное окно тех. карты ===
+    function TechCardModal({ techCard, ingredients, onSave, onClose }) {
+      const [name, setName] = useState(techCard?.name || '');
+      const [category, setCategory] = useState(techCard?.category || 'Первое');
+      const [portionSize, setPortionSize] = useState(techCard?.portionSize || 300);
+      const [sellingPrice, setSellingPrice] = useState(techCard?.sellingPrice || 0);
+      const [notes, setNotes] = useState(techCard?.notes || '');
+      const [cardIngredients, setCardIngredients] = useState(techCard?.ingredients || []);
+      const [selectedIngredient, setSelectedIngredient] = useState('');
+      const [quantity, setQuantity] = useState(0.1);
+
+      const cost = useMemo(() => {
+        return cardIngredients.reduce((sum, ing) => {
+          const ingredient = ingredients.find(i => i.id === ing.ingredientId);
+          return sum + (ingredient ? ingredient.pricePerUnit * ing.quantity : 0);
+        }, 0);
+      }, [cardIngredients, ingredients]);
+
+      const handleAddIngredient = () => {
+        if (!selectedIngredient) return;
+        const existing = cardIngredients.find(ing => ing.ingredientId === selectedIngredient);
+        if (existing) {
+          setCardIngredients(cardIngredients.map(ing =>
+            ing.ingredientId === selectedIngredient ? { ...ing, quantity: ing.quantity + parseFloat(quantity) } : ing
+          ));
+        } else {
+          setCardIngredients([...cardIngredients, { ingredientId: selectedIngredient, quantity: parseFloat(quantity) }]);
+        }
+        setSelectedIngredient('');
+        setQuantity(0.1);
+      };
+
+      const handleRemoveIngredient = (ingredientId) => {
+        setCardIngredients(cardIngredients.filter(ing => ing.ingredientId !== ingredientId));
+      };
+
+      const handleUpdateQuantity = (ingredientId, newQuantity) => {
+        setCardIngredients(cardIngredients.map(ing =>
+          ing.ingredientId === ingredientId ? { ...ing, quantity: parseFloat(newQuantity) || 0 } : ing
+        ));
+      };
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!name.trim()) {
+          alert('Введите название блюда');
+          return;
+        }
+        onSave({
+          name: name.trim(),
+          category,
+          portionSize: parseInt(portionSize),
+          sellingPrice: parseFloat(sellingPrice) || 0,
+          notes,
+          ingredients: cardIngredients,
+          cost
+        });
+      };
+
+      return (
+        <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50 overflow-y-auto py-8">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 my-auto">
+            <h3 className="text-xl font-semibold mb-4">
+              {techCard ? '✏️ Редактировать ТК' : '➕ Новая технологическая карта'}
+            </h3>
+            <form onSubmit={handleSubmit}>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Название блюда *</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Категория</label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Выход (грамм)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={portionSize}
+                    onChange={(e) => setPortionSize(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Цена продажи (₽)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={sellingPrice}
+                    onChange={(e) => setSellingPrice(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Примечания (технология)</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows="2"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="border-t pt-4 mb-4">
+                <h4 className="font-medium mb-2">Ингредиенты</h4>
+                <div className="flex gap-2 mb-3">
+                  <select
+                    value={selectedIngredient}
+                    onChange={(e) => setSelectedIngredient(e.target.value)}
+                    className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Выберите ингредиент...</option>
+                    {ingredients.map(ing => (
+                      <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit}, {formatMoney(ing.pricePerUnit)})</option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    placeholder="Кол-во"
+                    className="w-24 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddIngredient}
+                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                  >
+                    +
+                  </button>
+                </div>
+
+                {cardIngredients.length > 0 && (
+                  <div className="bg-gray-50 rounded p-3">
+                    {cardIngredients.map(ing => {
+                      const ingredient = ingredients.find(i => i.id === ing.ingredientId);
+                      if (!ingredient) return null;
+                      return (
+                        <div key={ing.ingredientId} className="flex justify-between items-center py-1 border-b last:border-0">
+                          <span className="text-sm">{ingredient.name}</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              step="0.001"
+                              min="0"
+                              value={ing.quantity}
+                              onChange={(e) => handleUpdateQuantity(ing.ingredientId, e.target.value)}
+                              className="w-20 p-1 text-right border border-gray-300 rounded text-sm"
+                            />
+                            <span className="text-sm text-gray-600">{ingredient.unit}</span>
+                            <span className="text-sm text-gray-600 w-20 text-right">{formatMoney(ingredient.pricePerUnit * ing.quantity)}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveIngredient(ing.ingredientId)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="flex justify-between items-center pt-2 mt-2 border-t font-medium">
+                      <span>Итого себестоимость:</span>
+                      <span>{formatMoney(cost)}</span>
+                    </div>
+                    {sellingPrice > 0 && cost > 0 && (
+                      <div className="flex justify-between items-center text-sm text-green-600">
+                        <span>Наценка:</span>
+                        <span>{((sellingPrice - cost) / cost * 100).toFixed(0)}%</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  type="submit"
+                  className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
+                >
+                  Сохранить
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400"
+                >
+                  Отмена
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    // === Вкладка меню ===
+    function MenuTab({ menu, techCards, categoryFilter, setCategoryFilter, onAddToMenu, onRemoveFromMenu, onQuantityChange }) {
+      const menuStats = useMemo(() => {
+        let totalRevenue = 0;
+        let totalCost = 0;
+        let totalPortions = 0;
+
+        menu.forEach(item => {
+          const tc = techCards.find(t => t.id === item.techCardId);
+          if (tc) {
+            totalRevenue += tc.sellingPrice * item.quantity;
+            totalCost += tc.cost * item.quantity;
+            totalPortions += item.quantity;
+          }
+        });
+
+        const profit = totalRevenue - totalCost;
+        const avgMarkup = totalCost > 0 ? (profit / totalCost * 100).toFixed(1) : 0;
+
+        return { totalRevenue, totalCost, profit, avgMarkup, totalPortions };
+      }, [menu, techCards]);
+
+      return (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Левая панель - доступные блюда */}
+          <div>
+            <h2 className="text-xl font-semibold mb-4">🍽️ Доступные блюда</h2>
+
+            <div className="mb-4 flex flex-wrap gap-2">
+              <button
+                onClick={() => setCategoryFilter('Все')}
+                className={`px-3 py-1 rounded-full ${categoryFilter === 'Все' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+              >
+                Все
+              </button>
+              {CATEGORIES.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(cat)}
+                  className={`px-3 py-1 rounded-full ${categoryFilter === cat ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            <div className="bg-white rounded-lg shadow max-h-[600px] overflow-y-auto">
+              {techCards
+                .filter(tc => categoryFilter === 'Все' || tc.category === categoryFilter)
+                .map(tc => {
+                  const inMenu = menu.find(m => m.techCardId === tc.id);
+                  return (
+                    <div key={tc.id} className="flex justify-between items-center p-4 border-b last:border-0 hover:bg-gray-50">
+                      <div>
+                        <h3 className="font-medium">{tc.name}</h3>
+                        <p className="text-sm text-gray-600">{tc.portionSize}г • {formatMoney(tc.sellingPrice)}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => onRemoveFromMenu(tc.id)}
+                          className="w-8 h-8 bg-gray-200 rounded-full hover:bg-gray-300 flex items-center justify-center text-lg"
+                        >
+                          −
+                        </button>
+                        <span className="w-8 text-center font-medium">{inMenu?.quantity || 0}</span>
+                        <button
+                          onClick={() => onAddToMenu(tc.id)}
+                          className="w-8 h-8 bg-blue-600 text-white rounded-full hover:bg-blue-700 flex items-center justify-center text-lg"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+
+          {/* Правая панель - текущее меню */}
+          <div>
+            <h2 className="text-xl font-semibold mb-4">📖 Текущее меню</h2>
+
+            <div className="bg-white rounded-lg shadow p-4 mb-4">
+              <h3 className="font-medium text-gray-600 mb-2">Статистика</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">Порций</p>
+                  <p className="text-2xl font-bold">{menuStats.totalPortions}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Выручка</p>
+                  <p className="text-2xl font-bold text-blue-600">{formatMoney(menuStats.totalRevenue)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Себестоимость</p>
+                  <p className="text-2xl font-bold text-red-600">{formatMoney(menuStats.totalCost)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Прибыль</p>
+                  <p className="text-2xl font-bold text-green-600">{formatMoney(menuStats.profit)}</p>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t">
+                <p className="text-sm text-gray-600">Средняя наценка: <span className="font-medium text-green-600">{menuStats.avgMarkup}%</span></p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow max-h-[400px] overflow-y-auto">
+              {menu.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  Меню пустое. Добавьте блюда слева!
+                </div>
+              ) : (
+                menu.map(item => {
+                  const tc = techCards.find(t => t.id === item.techCardId);
+                  if (!tc) return null;
+                  return (
+                    <div key={item.techCardId} className="flex justify-between items-center p-4 border-b last:border-0 hover:bg-gray-50">
+                      <div>
+                        <h3 className="font-medium">{tc.name}</h3>
+                        <p className="text-sm text-gray-600">
+                          {item.quantity} порц. × {formatMoney(tc.sellingPrice)} = {formatMoney(tc.sellingPrice * item.quantity)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => onQuantityChange(item.techCardId, item.quantity - 1)}
+                          className="w-8 h-8 bg-gray-200 rounded-full hover:bg-gray-300 flex items-center justify-center text-lg"
+                        >
+                          −
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => onQuantityChange(item.techCardId, parseInt(e.target.value) || 1)}
+                          className="w-16 text-center border border-gray-300 rounded py-1"
+                        />
+                        <button
+                          onClick={() => onQuantityChange(item.techCardId, item.quantity + 1)}
+                          className="w-8 h-8 bg-blue-600 text-white rounded-full hover:bg-blue-700 flex items-center justify-center text-lg"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // === Вкладка закупок ===
+    function PurchasesTab({ menu, techCards, ingredients }) {
+      const purchaseItems = useMemo(() => {
+        const aggregated = {};
+
+        menu.forEach(menuItem => {
+          const tc = techCards.find(t => t.id === menuItem.techCardId);
+          if (!tc) return;
+
+          tc.ingredients.forEach(tcIng => {
+            const ingredient = ingredients.find(i => i.id === tcIng.ingredientId);
+            if (!ingredient) return;
+
+            const totalQty = tcIng.quantity * menuItem.quantity;
+
+            if (!aggregated[tcIng.ingredientId]) {
+              aggregated[tcIng.ingredientId] = {
+                ingredientId: tcIng.ingredientId,
+                ingredientName: ingredient.name,
+                unit: ingredient.unit,
+                totalQuantity: 0,
+                pricePerUnit: ingredient.pricePerUnit,
+                totalPrice: 0,
+                dishes: []
+              };
+            }
+
+            aggregated[tcIng.ingredientId].totalQuantity += totalQty;
+            aggregated[tcIng.ingredientId].dishes.push({
+              dishName: tc.name,
+              quantity: menuItem.quantity
+            });
+          });
+        });
+
+        return Object.values(aggregated).map(item => ({
+          ...item,
+          totalPrice: item.totalQuantity * item.pricePerUnit
+        })).sort((a, b) => b.totalPrice - a.totalPrice);
+      }, [menu, techCards, ingredients]);
+
+      const totalCost = purchaseItems.reduce((sum, item) => sum + item.totalPrice, 0);
+      const totalPortions = menu.reduce((sum, item) => sum + item.quantity, 0);
+
+      const exportToCSV = () => {
+        const headers = ['№', 'Ингредиент', 'Ед.изм.', 'Кол-во', 'Цена/ед.', 'Сумма', 'На блюда'];
+        const rows = purchaseItems.map((item, index) => [
+          index + 1,
+          item.ingredientName,
+          item.unit,
+          formatNumber(item.totalQuantity),
+          formatMoney(item.pricePerUnit),
+          formatMoney(item.totalPrice),
+          item.dishes.map(d => `${d.dishName} (${d.quantity} порц.)`).join('; ')
+        ]);
+
+        const csvContent = [
+          headers.join(';'),
+          ...rows.map(row => row.join(';'))
+        ].join('\n');
+
+        // Добавляем BOM для корректного отображения кириллицы в Excel
+        const bom = '\uFEFF';
+        const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `закупки_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+      };
+
+      const handlePrint = () => {
+        window.print();
+      };
+
+      return (
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">🛒 Таблица закупок</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={exportToCSV}
+                disabled={purchaseItems.length === 0}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                📥 Экспорт CSV
+              </button>
+              <button
+                onClick={handlePrint}
+                disabled={purchaseItems.length === 0}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                🖨️ Печать
+              </button>
+            </div>
+          </div>
+
+          {purchaseItems.length === 0 ? (
+            <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+              Меню пустое. Добавьте блюда во вкладке "Меню" для расчёта закупок.
+            </div>
+          ) : (
+            <>
+              <div className="bg-white rounded-lg shadow overflow-x-auto mb-4 print:shadow-none">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="px-3 py-2 text-left border">#</th>
+                      <th className="px-3 py-2 text-left border">Ингредиент</th>
+                      <th className="px-3 py-2 text-left border">Ед.изм.</th>
+                      <th className="px-3 py-2 text-right border">Кол-во</th>
+                      <th className="px-3 py-2 text-right border">Цена/ед.</th>
+                      <th className="px-3 py-2 text-right border">Сумма</th>
+                      <th className="px-3 py-2 text-left border print:hidden">На блюда</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {purchaseItems.map((item, index) => (
+                      <tr key={item.ingredientId} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 border">{index + 1}</td>
+                        <td className="px-3 py-2 border font-medium">{item.ingredientName}</td>
+                        <td className="px-3 py-2 border">{item.unit}</td>
+                        <td className="px-3 py-2 border text-right">{formatNumber(item.totalQuantity)}</td>
+                        <td className="px-3 py-2 border text-right">{formatMoney(item.pricePerUnit)}</td>
+                        <td className="px-3 py-2 border text-right font-medium">{formatMoney(item.totalPrice)}</td>
+                        <td className="px-3 py-2 border text-xs text-gray-600 print:hidden">
+                          {item.dishes.map(d => `${d.dishName} (${d.quantity})`).join(', ')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-100 font-semibold">
+                    <tr>
+                      <td colSpan="5" className="px-3 py-3 border text-right">ИТОГО:</td>
+                      <td className="px-3 py-3 border text-right text-blue-600">{formatMoney(totalCost)}</td>
+                      <td className="px-3 py-3 border print:hidden"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 bg-white rounded-lg shadow p-4 print:hidden">
+                <div>
+                  <p className="text-sm text-gray-600">Позиций в закупке</p>
+                  <p className="text-2xl font-bold">{purchaseItems.length}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Общая стоимость</p>
+                  <p className="text-2xl font-bold text-blue-600">{formatMoney(totalCost)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Всего порций</p>
+                  <p className="text-2xl font-bold">{totalPortions}</p>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // === Рендеринг ===
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
