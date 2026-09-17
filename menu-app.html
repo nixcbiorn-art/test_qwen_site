@@ -8,18 +8,37 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          lineClamp: {
+            '2': '2',
+          },
+          maxHeight: {
+            '600px': '600px',
+            '400px': '400px',
+          }
+        }
+      }
+    }
+  </script>
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     .tab-active { border-bottom: 3px solid #3b82f6; color: #3b82f6; font-weight: 600; }
     .modal-overlay { background-color: rgba(0,0,0,0.5); }
     .sticky-header { position: sticky; top: 0; z-index: 100; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    @media print {
+      .print\\:hidden { display: none !important; }
+      .print\\:shadow-none { box-shadow: none !important; }
+    }
   </style>
 </head>
 <body class="bg-gray-50">
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useMemo, useCallback } = React;
+    const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
     // === Типы данных ===
     // Ingredient { id, name, unit, pricePerUnit }
@@ -132,6 +151,14 @@
         notes: 'Тесто дрожжевое, выпекать при 180°C 20 минут.'
       },
     ];
+
+    // Функция расчёта себестоимости
+    const calculateCost = (ingredients, cardIngredients) => {
+      return cardIngredients.reduce((sum, ing) => {
+        const ingredient = ingredients.find(i => i.id === ing.ingredientId);
+        return sum + (ingredient ? ingredient.pricePerUnit * ing.quantity : 0);
+      }, 0);
+    };
 
     // === Компоненты ===
 
@@ -571,7 +598,7 @@
                       </div>
                     </div>
                     {tc.notes && (
-                      <p className="text-xs text-gray-500 italic mb-3 line-clamp-2">{tc.notes}</p>
+                      <p className="text-xs text-gray-500 italic mb-3 overflow-hidden" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>{tc.notes}</p>
                     )}
                     <div className="flex space-x-2">
                       <button
@@ -1140,8 +1167,19 @@
     }
 
     // === Рендеринг ===
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    const renderApp = () => {
+      if (typeof ReactDOM !== 'undefined' && document.getElementById('root')) {
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+      }
+    };
+    
+    // Ждём загрузки React
+    if (typeof React !== 'undefined' && typeof ReactDOM !== 'undefined') {
+      renderApp();
+    } else {
+      window.addEventListener('load', renderApp);
+    }
   </script>
 </body>
 </html>
